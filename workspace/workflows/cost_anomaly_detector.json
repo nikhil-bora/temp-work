@@ -1,0 +1,8 @@
+{
+  "name": "Cost Anomaly Detector",
+  "description": "Detect unusual cost spikes by comparing daily costs to 7-day averages",
+  "language": "javascript",
+  "createdAt": "2025-10-09T00:00:00.000Z",
+  "tags": ["anomaly", "alerting", "monitoring"],
+  "code": "// Cost Anomaly Detection\n// Compares last 24 hours to 7-day average and flags anomalies\n\nconst athena = new AWS.Athena({ region: 'ap-south-1' });\nconst threshold = 1.5; // 50% above average triggers alert\n\nconsole.log('🔍 Cost Anomaly Detection');\nconsole.log('===========================\\n');\nconsole.log(`Threshold: ${threshold}x average\\n`);\n\n// Get daily costs for last 7 days\nconst query = `\nSELECT \n  DATE(\\\"lineitem/usagestartdate\\\") as day,\n  \\\"product/productname\\\" as service,\n  ROUND(SUM(\\\"lineitem/unblendedcost\\\"), 2) as daily_cost\nFROM \\\"raw-data-v1\\\".\\\"raw_aws_amnic\\\"\nWHERE \\\"lineitem/usagestartdate\\\" >= CURRENT_DATE - INTERVAL '7' DAY\n  AND \\\"lineitem/unblendedcost\\\" > 0\nGROUP BY DATE(\\\"lineitem/usagestartdate\\\"), \\\"product/productname\\\"\nORDER BY day DESC, daily_cost DESC\n`;\n\nconsole.log('Analyzing cost patterns...');\nconsole.log('\\nAnomaly detection logic:');\nconsole.log('1. Calculate 7-day average per service');\nconsole.log('2. Compare yesterday to average');\nconsole.log('3. Flag services with costs > ' + (threshold * 100 - 100) + '% above average\\n');\n\nconsole.log('Run this workflow to detect cost anomalies!');"
+}

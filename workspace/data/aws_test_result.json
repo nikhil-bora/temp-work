@@ -1,0 +1,7 @@
+{
+  "timestamp": "2025-10-09T12:00:52.623Z",
+  "test": "AWS SDK Integration",
+  "status": "success",
+  "instanceCount": 5,
+  "region": "ap-south-1"
+}

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinOps Agent - Amnic AI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">A</div>
+                <div>
+                    <div class="logo-text">FinOps Agent</div>
+                    <div class="header-subtitle">FinOps OS powered by AI Agents</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button class="btn-nav active" onclick="window.location.href='/'">
+                    💬 Chat
+                </button>
+                <button class="btn-nav" onclick="window.location.href='/api/dashboard'">
+                    📊 Dashboard
+                </button>
+                <button class="btn-nav" onclick="window.location.href='/api/charts-page'">
+                    📈 Charts
+                </button>
+                <button class="btn-nav" onclick="window.location.href='/api/conversations/history'">
+                    📜 History
+                </button>
+                <span style="font-size: 0.875rem; color: var(--text-secondary);">Powered by Amnic AI</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Status</h3>
+                <div class="status-item">
+                    <span class="status-dot"></span>
+                    <span>AWS Connected</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot"></span>
+                    <span>Athena Ready</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot"></span>
+                    <span>Claude AI Ready</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Quick Actions</h3>
+                <button class="quick-action" onclick="sendQuickQuery('What were my top 5 services by cost last month?')">
+                    📊 Top 5 Services
+                </button>
+                <button class="quick-action" onclick="sendQuickQuery('Show me costs for the last 30 days')">
+                    📈 Last 30 Days
+                </button>
+                <button class="quick-action" onclick="sendQuickQuery('Analyze my RI coverage')">
+                    🎯 RI Coverage
+                </button>
+                <button class="quick-action" onclick="sendQuickQuery('Forecast costs for next quarter')">
+                    🔮 Cost Forecast
+                </button>
+                <button class="quick-action" onclick="sendQuickQuery('Show me underutilized EC2 instances')">
+                    💡 Find Savings
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Conversation</h3>
+                <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 6px; font-size: 0.75rem; color: var(--text-secondary); word-break: break-all;">
+                    <div style="margin-bottom: 0.25rem; font-weight: 600;">Current ID:</div>
+                    <div id="conversationIdDisplay">Not started</div>
+                </div>
+                <button class="btn-clear" onclick="clearHistory()" style="width: 100%; margin-bottom: 0.5rem;">
+                    🆕 New Conversation
+                </button>
+                <button class="btn-clear" onclick="window.location.href='/api/conversations/history'" style="width: 100%; background: var(--primary-purple); color: white;">
+                    📜 View All
+                </button>
+            </div>
+        </aside>
+
+        <!-- Chat Area -->
+        <main class="chat-area">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Welcome Screen -->
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">💰</div>
+                    <h1 class="welcome-title">Welcome to FinOps Agent</h1>
+                    <p class="welcome-subtitle">Ask me anything about your AWS costs and usage</p>
+
+                    <div class="example-queries">
+                        <div class="example-query" onclick="sendQuickQuery('What were my top 5 services by cost last month?')">
+                            What were my top 5 services by cost last month?
+                        </div>
+                        <div class="example-query" onclick="sendQuickQuery('Show me EC2 costs grouped by instance type')">
+                            Show me EC2 costs grouped by instance type
+                        </div>
+                        <div class="example-query" onclick="sendQuickQuery('Find underutilized instances and calculate savings')">
+                            Find underutilized instances and calculate savings
+                        </div>
+                        <div class="example-query" onclick="sendQuickQuery('Analyze costs by tags')">
+                            Analyze costs by tags
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-area">
+                <div class="chat-input-container">
+                    <textarea
+                        class="chat-input"
+                        id="chatInput"
+                        placeholder="Ask me about your AWS costs..."
+                        rows="1"
+                        onkeydown="handleKeyPress(event)"
+                    ></textarea>
+                    <button class="btn-send" id="sendBtn" onclick="sendMessage()">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

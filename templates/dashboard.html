@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPI Dashboard - FinOps Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">A</div>
+                <div>
+                    <div class="logo-text">FinOps Agent</div>
+                    <div class="header-subtitle">KPI Dashboard</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button class="btn-nav" onclick="window.location.href='/'">
+                    💬 Chat
+                </button>
+                <button class="btn-nav active" onclick="window.location.href='/api/dashboard'">
+                    📊 Dashboard
+                </button>
+                <button class="btn-nav" onclick="window.location.href='/api/charts-page'">
+                    📈 Charts
+                </button>
+                <button class="btn-nav" onclick="window.location.href='/api/conversations/history'">
+                    📜 History
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="dashboard-container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title">Cost & Performance KPIs</h1>
+                <p class="dashboard-subtitle">Real-time insights into your AWS costs and usage</p>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn-action" onclick="refreshAllKPIs()">
+                    🔄 Refresh All
+                </button>
+                <button class="btn-action btn-primary" onclick="showAddKPIModal()">
+                    ＋ Add KPI
+                </button>
+            </div>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="kpi-grid" id="kpiGrid">
+            <!-- KPI cards will be dynamically inserted here -->
+            <div class="kpi-loading">
+                <div class="spinner"></div>
+                <p>Loading KPIs...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit KPI Modal -->
+    <div class="modal" id="kpiModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New KPI</h2>
+                <button class="modal-close" onclick="closeKPIModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="kpiForm">
+                    <input type="hidden" id="kpiId">
+
+                    <div class="form-group">
+                        <label>KPI Name *</label>
+                        <input type="text" id="kpiName" class="form-input" placeholder="e.g., Total Monthly Cost" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="kpiDescription" class="form-input" placeholder="Brief description of this KPI">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Icon</label>
+                            <input type="text" id="kpiIcon" class="form-input" placeholder="💰" value="📊">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Color</label>
+                            <input type="color" id="kpiColor" class="form-input" value="#33ccff">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Size</label>
+                            <select id="kpiSize" class="form-input">
+                                <option value="small">Small</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="large">Large</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Query Type *</label>
+                        <select id="kpiQueryType" class="form-input" onchange="updateQueryHelp()">
+                            <option value="cur">CUR (Athena SQL)</option>
+                            <option value="cost_explorer">Cost Explorer API</option>
+                            <option value="custom">Custom Function</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Query *</label>
+                        <textarea id="kpiQuery" class="form-textarea" rows="8" placeholder="SELECT SUM(line_item_unblended_cost) as total_cost FROM {table} WHERE..." required></textarea>
+                        <small class="form-help" id="queryHelp">Use {table} placeholder for CUR table name. Query should return a single value.</small>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Format *</label>
+                            <select id="kpiFormat" class="form-input">
+                                <option value="currency">Currency ($)</option>
+                                <option value="number">Number</option>
+                                <option value="percentage">Percentage (%)</option>
+                                <option value="text">Text</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Refresh Interval (seconds)</label>
+                            <input type="number" id="kpiRefreshInterval" class="form-input" value="1800" min="60">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeKPIModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Save KPI</button>
+                    </div>
+                </form>
+
+                <!-- KPI Templates -->
+                <div class="templates-section" id="templatesSection">
+                    <h3>Quick Templates</h3>
+                    <div class="templates-grid" id="templatesGrid">
+                        <!-- Templates will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
