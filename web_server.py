@@ -35,6 +35,10 @@ from agent import (
 from tools import AVAILABLE_TOOLS
 from kpi_manager import kpi_manager
 from conversation_manager import conversation_manager
+from context_manager import ContextManager
+
+# Initialize context manager
+context_manager = ContextManager()
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -63,10 +67,12 @@ def chat():
     user_message = data.get('message', '').strip()
     conversation_id = data.get('conversation_id', None)
     session_id = data.get('session_id', 'default')
+    context_ids = data.get('context_ids', [])
 
     logger.info(f"User message: {user_message[:100]}...")
     logger.info(f"Conversation ID: {conversation_id}")
     logger.info(f"Session ID: {session_id}")
+    logger.info(f"Context IDs: {context_ids}")
 
     if not user_message:
         logger.warning("Empty message received")
@@ -83,7 +89,7 @@ def chat():
 
     # Process message in background thread
     logger.debug("Starting background thread for message processing")
-    thread = Thread(target=process_message_background, args=(user_message, conversation_id, session_id))
+    thread = Thread(target=process_message_background, args=(user_message, conversation_id, session_id, context_ids))
     thread.daemon = True
     thread.start()
 
@@ -410,6 +416,138 @@ def conversations_history_page():
     return render_template('conversations.html')
 
 
+# ===== Custom Context Management Endpoints =====
+
+@app.route('/api/contexts', methods=['GET'])
+def get_contexts():
+    """Get all custom contexts"""
+    contexts = context_manager.list_contexts()
+    return jsonify(contexts)
+
+
+@app.route('/api/contexts', methods=['POST'])
+def create_context():
+    """Create a new custom context"""
+    data = request.json
+    name = data.get('name', '').strip()
+    content = data.get('content', '').strip()
+    description = data.get('description', '').strip()
+
+    if not name or not content:
+        return jsonify({'error': 'Name and content are required'}), 400
+
+    try:
+        context = context_manager.add_context(name, content, description)
+        return jsonify(context), 201
+    except Exception as e:
+        logger.error(f"Error creating context: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/contexts/upload', methods=['POST'])
+def upload_context_file():
+    """Upload a file as custom context (text or image)"""
+    import base64
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+
+    if not name:
+        # Use filename as name if not provided
+        name = file.filename
+
+    # Detect file type
+    filename_lower = file.filename.lower()
+    image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
+    is_image = filename_lower.endswith(image_extensions)
+
+    try:
+        if is_image:
+            # Handle image file
+            file_data = file.read()
+
+            # Get media type from extension
+            ext = filename_lower.split('.')[-1]
+            media_type_map = {
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'gif': 'image/gif',
+                'webp': 'image/webp',
+                'bmp': 'image/bmp'
+            }
+            media_type = media_type_map.get(ext, 'image/jpeg')
+
+            # Encode as base64
+            base64_image = base64.b64encode(file_data).decode('utf-8')
+
+            # Store with media type prefix
+            content = f"{media_type}:{base64_image}"
+
+            context = context_manager.add_context(name, content, description, context_type="image")
+            return jsonify(context), 201
+        else:
+            # Handle text file
+            content = file.read().decode('utf-8')
+
+            if not content.strip():
+                return jsonify({'error': 'File is empty'}), 400
+
+            context = context_manager.add_context(name, content, description, context_type="text")
+            return jsonify(context), 201
+
+    except UnicodeDecodeError:
+        return jsonify({'error': 'File must be a text file (UTF-8 encoded) or an image'}), 400
+    except Exception as e:
+        logger.error(f"Error uploading context file: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/contexts/<context_id>', methods=['GET'])
+def get_context(context_id):
+    """Get a specific context with content"""
+    context = context_manager.get_context(context_id)
+    if not context:
+        return jsonify({'error': 'Context not found'}), 404
+
+    content = context_manager.get_context_content(context_id)
+    return jsonify({**context, 'content': content})
+
+
+@app.route('/api/contexts/<context_id>', methods=['PUT'])
+def update_context(context_id):
+    """Update a context"""
+    data = request.json
+    name = data.get('name')
+    description = data.get('description')
+    content = data.get('content')
+
+    try:
+        context = context_manager.update_context(context_id, name, description, content)
+        if not context:
+            return jsonify({'error': 'Context not found'}), 404
+        return jsonify(context)
+    except Exception as e:
+        logger.error(f"Error updating context: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/contexts/<context_id>', methods=['DELETE'])
+def delete_context(context_id):
+    """Delete a context"""
+    success = context_manager.delete_context(context_id)
+    if not success:
+        return jsonify({'error': 'Context not found'}), 404
+    return jsonify({'success': True})
+
+
 @sock.route('/ws')
 def websocket(ws):
     """WebSocket connection for real-time updates"""
@@ -458,11 +596,15 @@ def broadcast_to_clients(message):
         active_connections.difference_update(disconnected)
 
 
-def process_message_background(user_message: str, conversation_id: str, session_id: str = 'default'):
+def process_message_background(user_message: str, conversation_id: str, session_id: str = 'default', context_ids: list = None):
     """Process message in background and send updates via WebSocket"""
     logger.info("=" * 80)
     logger.info(f"BACKGROUND PROCESSING: {user_message[:100]}")
     logger.info(f"Conversation ID: {conversation_id}, Session ID: {session_id}")
+    logger.info(f"Context IDs: {context_ids}")
+
+    if context_ids is None:
+        context_ids = []
 
     try:
         # Validate conversation exists
@@ -500,6 +642,19 @@ def process_message_background(user_message: str, conversation_id: str, session_
             messages.append({"role": "user", "content": user_message})
             logger.debug("Added current message to array")
 
+        # If there are image contexts, prepend them to the first user message
+        if context_ids:
+            image_contexts = context_manager.get_image_contexts(context_ids)
+            if image_contexts and messages:
+                # Find first user message and make it multimodal
+                for i, msg in enumerate(messages):
+                    if msg['role'] == 'user':
+                        # Convert first user message to multimodal format
+                        original_content = msg['content']
+                        msg['content'] = image_contexts + [{"type": "text", "text": original_content}]
+                        logger.info(f"Added {len(image_contexts)} image contexts to first user message")
+                        break
+
         current_messages = messages
         max_attempts = 50
         attempts = 0
@@ -509,13 +664,20 @@ def process_message_background(user_message: str, conversation_id: str, session_
             attempts += 1
             logger.info(f"API call attempt {attempts}/{max_attempts}")
 
+            # Build system prompt with custom contexts if provided
+            system_prompt = get_finops_system_prompt()
+            if context_ids:
+                logger.info(f"Adding {len(context_ids)} custom contexts to system prompt")
+                custom_context = context_manager.get_contexts_for_prompt(context_ids)
+                system_prompt += custom_context
+
             # Call Claude API
             logger.debug("Calling Claude API...")
             logger.debug(f"Message count: {len(current_messages)}")
             response = anthropic.messages.create(
                 model="claude-3-7-sonnet-20250219",
                 max_tokens=4096,
-                system=get_finops_system_prompt(),
+                system=system_prompt,
                 messages=current_messages,
                 tools=AVAILABLE_TOOLS
             )
@@ -532,7 +694,8 @@ def process_message_background(user_message: str, conversation_id: str, session_
                 for text in text_content:
                     broadcast_to_clients({
                         'type': 'text_response',
-                        'content': text.text
+                        'content': text.text,
+                        'conversation_id': conversation_id
                     })
 
             if tool_calls:
@@ -547,7 +710,8 @@ def process_message_background(user_message: str, conversation_id: str, session_
                         broadcast_to_clients({
                             'type': 'tool_call',
                             'tool_name': tool_call.name,
-                            'status': 'started'
+                            'status': 'started',
+                            'conversation_id': conversation_id
                         })
 
                         # Execute tool
@@ -578,7 +742,8 @@ def process_message_background(user_message: str, conversation_id: str, session_
                             'type': 'tool_call',
                             'tool_name': tool_call.name,
                             'status': 'completed',
-                            'result': ui_result
+                            'result': ui_result,
+                            'conversation_id': conversation_id
                         })
 
                         # If KPI was created, notify dashboard to refresh
@@ -604,7 +769,8 @@ def process_message_background(user_message: str, conversation_id: str, session_
                             'type': 'tool_call',
                             'tool_name': tool_call.name,
                             'status': 'error',
-                            'result': error_msg
+                            'result': error_msg,
+                            'conversation_id': conversation_id
                         })
 
                 # Add assistant response and tool results to messages

@@ -109,6 +109,51 @@
             padding: 4rem;
             color: #666;
         }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+            padding: 1rem;
+        }
+
+        .pagination-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--bg-primary);
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+            transform: translateY(-2px);
+        }
+
+        .pagination-btn.active {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            color: white;
+            border-color: transparent;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin: 0 1rem;
+        }
     </style>
 </head>
 <body>
@@ -149,9 +194,141 @@
         <div id="charts-grid" class="charts-grid">
             <div class="loading">Loading charts...</div>
         </div>
+
+        <div id="pagination" class="pagination" style="display: none;"></div>
     </div>
 
     <script>
+        let currentPage = 1;
+        let chartsPerPage = 12;
+        let allCharts = [];
+
+        function renderPagination(totalCharts) {
+            const totalPages = Math.ceil(totalCharts / chartsPerPage);
+            const pagination = document.getElementById('pagination');
+
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            pagination.style.display = 'flex';
+            pagination.innerHTML = '';
+
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'pagination-btn';
+            prevBtn.textContent = '← Previous';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                currentPage--;
+                renderCharts();
+            };
+            pagination.appendChild(prevBtn);
+
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.className = 'pagination-btn';
+                firstBtn.textContent = '1';
+                firstBtn.onclick = () => {
+                    currentPage = 1;
+                    renderCharts();
+                };
+                pagination.appendChild(firstBtn);
+
+                if (startPage > 2) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    dots.style.padding = '0 0.5rem';
+                    dots.style.color = 'var(--text-secondary)';
+                    pagination.appendChild(dots);
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
+                pageBtn.textContent = i;
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    renderCharts();
+                };
+                pagination.appendChild(pageBtn);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    dots.style.padding = '0 0.5rem';
+                    dots.style.color = 'var(--text-secondary)';
+                    pagination.appendChild(dots);
+                }
+
+                const lastBtn = document.createElement('button');
+                lastBtn.className = 'pagination-btn';
+                lastBtn.textContent = totalPages;
+                lastBtn.onclick = () => {
+                    currentPage = totalPages;
+                    renderCharts();
+                };
+                pagination.appendChild(lastBtn);
+            }
+
+            // Info text
+            const info = document.createElement('span');
+            info.className = 'pagination-info';
+            const start = (currentPage - 1) * chartsPerPage + 1;
+            const end = Math.min(currentPage * chartsPerPage, totalCharts);
+            info.textContent = `${start}-${end} of ${totalCharts}`;
+            pagination.appendChild(info);
+
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'pagination-btn';
+            nextBtn.textContent = 'Next →';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                currentPage++;
+                renderCharts();
+            };
+            pagination.appendChild(nextBtn);
+        }
+
+        function renderCharts() {
+            const grid = document.getElementById('charts-grid');
+            grid.innerHTML = '';
+
+            const start = (currentPage - 1) * chartsPerPage;
+            const end = start + chartsPerPage;
+            const chartsToShow = allCharts.slice(start, end);
+
+            chartsToShow.forEach(chart => {
+                const card = document.createElement('div');
+                card.className = 'chart-card';
+                card.onclick = () => window.open(chart.url, '_blank');
+
+                const date = new Date(chart.created * 1000).toLocaleString();
+
+                card.innerHTML = `
+                    <iframe src="${chart.url}" class="chart-preview" scrolling="no"></iframe>
+                    <div class="chart-info">
+                        <div class="chart-filename">${chart.filename}</div>
+                        <div class="chart-date">Created: ${date}</div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            renderPagination(allCharts.length);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         async function loadCharts() {
             const grid = document.getElementById('charts-grid');
             grid.innerHTML = '<div class="loading">Loading charts...</div>';
@@ -159,6 +336,9 @@
             try {
                 const response = await fetch('/api/charts');
                 const charts = await response.json();
+
+                allCharts = charts;
+                currentPage = 1;
 
                 if (charts.length === 0) {
                     grid.innerHTML = `
@@ -171,28 +351,11 @@
                             </p>
                         </div>
                     `;
+                    document.getElementById('pagination').style.display = 'none';
                     return;
                 }
 
-                grid.innerHTML = '';
-
-                charts.forEach(chart => {
-                    const card = document.createElement('div');
-                    card.className = 'chart-card';
-                    card.onclick = () => window.open(chart.url, '_blank');
-
-                    const date = new Date(chart.created * 1000).toLocaleString();
-
-                    card.innerHTML = `
-                        <iframe src="${chart.url}" class="chart-preview" scrolling="no"></iframe>
-                        <div class="chart-info">
-                            <div class="chart-filename">${chart.filename}</div>
-                            <div class="chart-date">Created: ${date}</div>
-                        </div>
-                    `;
-
-                    grid.appendChild(card);
-                });
+                renderCharts();
 
             } catch (error) {
                 console.error('Error loading charts:', error);

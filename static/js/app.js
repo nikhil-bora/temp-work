@@ -53,6 +53,13 @@ async function sendMessage() {
         return;
     }
 
+    // If starting a new conversation (no currentConversationId), clear the chat first
+    if (!currentConversationId) {
+        console.log('[CHAT] No active conversation - clearing chat window');
+        const messagesContainer = document.getElementById('chatMessages');
+        messagesContainer.innerHTML = '';
+    }
+
     // Hide welcome screen
     const welcomeScreen = document.getElementById('welcomeScreen');
     if (welcomeScreen) {
@@ -77,6 +84,10 @@ async function sendMessage() {
         console.log('[API] Conversation ID:', currentConversationId);
         console.log('[API] Session ID:', sessionId);
 
+        // Get selected context IDs
+        const contextIds = window.getSelectedContextIds ? window.getSelectedContextIds() : [];
+        console.log('[API] Selected context IDs:', contextIds);
+
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
@@ -85,7 +96,8 @@ async function sendMessage() {
             body: JSON.stringify({
                 message,
                 conversation_id: currentConversationId,
-                session_id: sessionId
+                session_id: sessionId,
+                context_ids: contextIds
             })
         });
 
@@ -119,6 +131,16 @@ async function sendMessage() {
 function handleAgentResponse(data) {
     console.log('[RESPONSE] handleAgentResponse() called');
     console.log('[RESPONSE] Data type:', data.type);
+    console.log('[RESPONSE] Message conversation_id:', data.conversation_id);
+    console.log('[RESPONSE] Current conversation_id:', currentConversationId);
+
+    // Filter out messages from other conversations
+    if (data.conversation_id && currentConversationId && data.conversation_id !== currentConversationId) {
+        console.log('[RESPONSE] ⚠ Ignoring message from different conversation');
+        console.log('[RESPONSE] Message is for:', data.conversation_id);
+        console.log('[RESPONSE] Current conversation:', currentConversationId);
+        return;
+    }
 
     const sendBtn = document.getElementById('sendBtn');
     sendBtn.disabled = false;
