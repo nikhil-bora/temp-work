@@ -1,0 +1,38 @@
+{
+  "id": "dash_1760120350_utilization",
+  "name": "utilization",
+  "description": "Generated from conversation conv_20251010_234522_101387",
+  "created": 1760120350.191915,
+  "updated": 1760120387.200316,
+  "conversation_id": "conv_20251010_234522_101387",
+  "widgets": [
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_234829.html",
+      "description": "A comparison of average and maximum CPU utilization for the 10 most underutilized EC2 instances. Instances with both low average and maximum CPU are prime candidates for rightsizing or termination.",
+      "position": 0,
+      "title": "Top 10 Most Underutilized EC2 Instances by CPU",
+      "type": "chart",
+      "width": "full",
+      "height": "600px",
+      "cols": 12
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_234837.html",
+      "description": "Breakdown of potential monthly savings by EC2 instance type. The chart shows where the biggest cost optimization opportunities exist.",
+      "position": 1,
+      "title": "Estimated Monthly Savings by Instance Type ($35,405 Total)",
+      "type": "chart",
+      "width": "full",
+      "height": "600px",
+      "cols": 12
+    },
+    {
+      "content": "## Underutilized EC2 Instances Analysis\n\nBased on my analysis of your EC2 environment, I've identified significant cost optimization opportunities through underutilized instances.\n\n### Summary of Findings:\n- **Total Running Instances:** 57\n- **Instances with Metrics Data:** 55\n- **Underutilized Instances:** 35 (61% of all instances!)\n- **Potential Monthly Savings:** $35,405\n\n### Top 10 Most Underutilized Instances:\n\n1. **i-05936471a92d973f9 (jumpbox-common)**\n   - Type: t3.large\n   - Avg CPU: 0.19%, Max CPU: 1.34%\n   - Extremely low utilization for even a small instance\n\n2. **i-0bc577c60c0be836c**\n   - Type: r5a.8xlarge (large memory-optimized instance)\n   - Avg CPU: 0.42%, Max CPU: 5.63%\n   - This large instance is severely underutilized\n\n3. **i-0474c1c655538b6d6 (mongodb)**\n   - Type: t3a.micro\n   - Avg CPU: 0.75%, Max CPU: 31.37%\n   - Has occasional spikes but overall low usage\n\n4. **i-07820e3cd0c395059**\n   - Type: r5a.xlarge\n   - Avg CPU: 1.63%, Max CPU: 2.60%\n   - Consistently low utilization with no significant spikes\n\n5. **i-0432a60ef50c53538**\n   - Type: r5a.xlarge\n   - Avg CPU: 1.91%, Max CPU: 3.43%\n   - Consistently low utilization\n\n6. **i-0231baaefb841245a**\n   - Type: r8g.xlarge\n   - Avg CPU: 2.46%, Max CPU: 11.35%\n   - Higher-generation instance with low usage\n\n7. **i-0e18cf5d66151d082**\n   - Type: m6i.2xlarge\n   - Avg CPU: 2.53%, Max CPU: 11.65%\n   - General-purpose instance with low usage\n\n8. **i-05962f9a44ea9e287**\n   - Type: r8g.xlarge\n   - Avg CPU: 2.58%, Max CPU: 12.23%\n   - Memory-optimized instance with low usage\n\n9. **i-06652324a4022e6d8**\n   - Type: r8g.xlarge\n   - Avg CPU: 2.65%, Max CPU: 14.66%\n   - Low average utilization despite occasional higher peaks\n\n10. **i-05ab201b372d711eb**\n    - Type: r8g.xlarge\n    - Avg CPU: 2.67%, Max CPU: 9.92%\n    - Consistently low utilization\n\n### Cost Savings Breakdown by Instance Type:\n- r8g.xlarge: $7,200/month (9 instances)\n- r6g.xlarge: $5,600/month (7 instances)\n- m6i.2xlarge: $6,400/month (5 instances)\n- r5a.8xlarge: $6,400/month (1 instance)\n- r5a.xlarge: $4,000/month (5 instances)\n- m7i.2xlarge: $2,560/month (2 instances)\n- r7g.xlarge: $2,400/month (3 instances)\n- r6a.xlarge: $800/month (1 instance)\n- t3.large: $40/month (1 instance)\n- t3a.micro: $5/month (1 instance)\n\n### Key Observations:\n\n1. **Memory-Optimized Instances Dominate:** Most underutilized instances are r-family (memory-optimized), suggesting you might be over-provisioning for memory-intensive workloads.\n\n2. **Large Instance Opportunities:** The r5a.8xlarge instance alone could save $6,400/month with just one rightsizing action.\n\n3. **Newer Generation Instances:** Many instances are newer generations (r8g, m7i) but still underutilized, indicating possible lift-and-shift migrations without rightsizing.\n\n4. **Low CPU Across the Board:** All identified instances have average CPU utilization below 3%, far below the typical recommendation of 40-60% for optimized instances.\n\n### Recommendations:\n\n1. **Immediate Actions:**\n   - Rightsize the r5a.8xlarge instance to a smaller size (potential $5,000+ savings)\n   - Consider terminating or consolidating the nine r8g.xlarge instances ($7,200 savings)\n   - Review all m6i.2xlarge instances for downsizing to xlarge or large sizes\n\n2. **Optimization Strategies:**\n   - **Rightsizing:** Downsize overprovisioned instances to match actual workload requirements\n   - **Spot Instances:** Convert non-critical workloads to Spot instances for up to 90% savings\n   - **Auto Scaling:** Implement auto-scaling for workloads with variable demand\n   - **Scheduled Operations:** Configure automated start/stop schedules for non-production instances\n   - **Reserved Instances/Savings Plans:** For stable workloads, consider commitment discounts\n\n3. **Tooling and Governance:**\n   - Implement automated rightsizing recommendations\n   - Set up CloudWatch alarms for instances with consistently low utilization\n   - Establish tagging policies to identify non-production resources\n   - Create a regular EC2 optimization review process\n\n4. **Next Steps:**\n   - Review workload requirements for the identified instances\n   - Perform more detailed analysis of memory utilization for r-family instances\n   - Create a migration plan for instances that need to be resized\n   - Implement a pilot with a few instances to validate the impact on application performance\n\nBy implementing these recommendations, you could realize significant monthly savings of approximately $35,405, which translates to over $424,000 annually.\n\nWould you like me to provide a more detailed analysis of any specific instance or create a rightsizing plan for a particular workload?",
+      "position": 2,
+      "title": "Analysis",
+      "type": "text",
+      "width": "full",
+      "cols": 12
+    }
+  ]
+}

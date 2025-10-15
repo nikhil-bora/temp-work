@@ -1,1 +1,20 @@
-{}
+{
+  "ctx_1760186414_Screenshot_2025-10-10_at_1.45.16\u202fPM.png": {
+    "id": "ctx_1760186414_Screenshot_2025-10-10_at_1.45.16\u202fPM.png",
+    "name": "Screenshot 2025-10-10 at 1.45.16\u202fPM.png",
+    "description": "",
+    "file": "custom_contexts/ctx_1760186414_Screenshot_2025-10-10_at_1.45.16\u202fPM.png.img",
+    "type": "image",
+    "created": 1760186414.2748091,
+    "size": 204198
+  },
+  "ctx_1760189062_monthly_chart": {
+    "id": "ctx_1760189062_monthly_chart",
+    "name": "monthly chart",
+    "description": "",
+    "file": "custom_contexts/ctx_1760189062_monthly_chart.pdf",
+    "type": "pdf",
+    "created": 1760189062.75197,
+    "size": 421609
+  }
+}

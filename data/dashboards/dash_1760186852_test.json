@@ -1,0 +1,25 @@
+{
+  "id": "dash_1760186852_test",
+  "name": "test",
+  "description": "Generated from conversation conv_20251011_181635_204314",
+  "created": 1760186852.758305,
+  "updated": 1760186852.758399,
+  "conversation_id": "conv_20251011_181635_204314",
+  "widgets": [
+    {
+      "type": "chart",
+      "title": "Top 5 AWS Services by Cost (September 2025)",
+      "description": "Visualization of top 5 AWS services by cost for September 2025",
+      "chart_url": "http://localhost:8000/charts/chart_20251011_181647.html",
+      "position": 0,
+      "width": "full"
+    },
+    {
+      "type": "text",
+      "title": "Analysis",
+      "content": "**Key Insights:**\n- **EC2** is by far your highest expense, accounting for about 60% of your top 5 costs\n- **S3 and Savings Plans** have similar costs, each around $3,500\n- **ELB and EFS** round out your top 5, with costs around $1,200-1,500 each\n\nYour Savings Plans appear as a cost line item, but they're actually helping reduce your overall EC2 costs through commitment-based discounts. Without these Savings Plans, your EC2 costs would likely be even higher.\n\nWould you like me to provide more detailed analysis of any specific service, such as a breakdown of EC2 costs by instance type or S3 costs by storage class?",
+      "position": 1,
+      "width": "full"
+    }
+  ]
+}

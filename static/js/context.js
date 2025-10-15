@@ -33,7 +33,7 @@ async function loadContexts() {
             const isSelected = selectedContextIds.includes(context.id);
             if (isSelected) {
                 contextItem.style.borderColor = 'var(--primary-blue)';
-                contextItem.style.background = 'rgba(51, 204, 255, 0.1)';
+                contextItem.style.background = 'rgba(0, 85, 254, 0.08)';
             }
 
             const typeIcon = context.type === 'image' ? '🖼️ ' : '📄 ';

@@ -5,3 +5,7 @@ colorama>=0.4.6
 flask>=3.0.0
 flask-sock>=0.7.0
 simple-websocket>=1.0.0
+mcp>=1.0.0
+awslabs.cost-explorer-mcp-server>=0.0.12
+awslabs.billing-cost-management-mcp-server>=0.0.1
+awslabs.aws-pricing-mcp-server>=0.0.1

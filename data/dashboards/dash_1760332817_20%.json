@@ -1,0 +1,35 @@
+{
+  "id": "dash_1760332817_20%",
+  "name": "20%",
+  "description": "Generated from conversation conv_20251013_104700_402579",
+  "created": 1760332817.7294989,
+  "updated": 1760506195.537336,
+  "conversation_id": "conv_20251013_104700_402579",
+  "widgets": [
+    {
+      "type": "chart",
+      "title": "Top 10 Services by Cost - October 2025",
+      "description": "Breakdown of AWS services by cost for October 2025",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_104741.html",
+      "position": 0,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Top S3 Buckets by Cost - October 2025",
+      "description": "Top 10 S3 buckets by cost for October 2025",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_104823.html",
+      "position": 1,
+      "width": "full"
+    },
+    {
+      "type": "text",
+      "title": "Analysis",
+      "content": "Based on my analysis, here is a summary of your current costs and recommendations to reduce them by 20%:\n\n## Current Month Cost Analysis\n- **Total Cost for October 2025 (to date)**: $10,769.05\n- **Target 20% Reduction**: $2,153.81 in savings needed\n\n## Cost Reduction Recommendations to Reach 20% Savings\n\n### 1. EC2 Optimization ($1,074.78 savings - 10% of total)\n- **Rightsize Memory-Optimized Instances**: Your top EC2 costs come from r6g.2xlarge and r6a.xlarge instances. These are memory-optimized instances which are expensive. Consider:\n  - Downsizing by one size (r6g.xlarge instead of r6g.2xlarge) for instances with low utilization\n  - Potential savings: ~$550 per month\n- **Reserved Instances/Savings Plans**: Increase your RI/SP coverage for steady-state workloads\n  - Potential savings: ~$524.78 per month\n\n### 2. S3 Storage Optimization ($249.54 savings - 2.32% of total)\n- **Lifecycle Policies**: Implement lifecycle policies for your most expensive buckets (prod-ccm-transformed-data, prod-ccm-raw-data)\n  - Move older data to cheaper storage classes (Infrequent Access, Glacier)\n  - Potential savings: ~$150 per month\n- **Clean up unnecessary data**: Your S3 costs are primarily storage-based. Review data retention policies\n  - Potential savings: ~$99.54 per month\n\n### 3. Load Balancer Optimization ($176.77 savings - 1.64% of total)\n- **Consolidate Load Balancers**: You have multiple load balancers that could potentially be consolidated\n  - Review if the istio ingress and other gateway LBs can be shared across environments\n  - Potential savings: ~$176.77 per month\n\n### 4. EFS Optimization ($148.05 savings - 1.37% of total)\n- **EFS Storage Classes**: Move infrequently accessed EFS data to IA storage class\n  - Potential savings: ~$98.05 per month\n- **Clean up unused EFS mounts**: Identify and remove unused EFS volumes\n  - Potential savings: ~$50 per month\n\n### 5. Proper Resource Tagging ($505 savings - 4.69% of total)\n- **Tag Enforcement**: Almost all resources are untagged, making cost allocation difficult\n  - Implement tagging policies and automated enforcement\n  - Use tags to identify and terminate non-production resources outside business hours\n  - Potential savings (by identifying and turning off dev/test instances): ~$505 per month\n\n### Total Estimated Savings: $2,154.14 (20.01% reduction)\n\n## Implementation Plan:\n\n1. **Immediate Actions (Days 1-7)**:\n   - Identify and rightsize underutilized EC2 instances\n   - Implement S3 lifecycle policies for your top 5 buckets\n   - Tag all resources with Environment and Owner tags\n\n2. **Short-term Actions (Days 8-14)**:\n   - Purchase Reserved Instances/Savings Plans for steady-state workloads\n   - Implement automated shutdown for non-production environments\n   - Consolidate underutilized load balancers\n\n3. **Medium-term Actions (Days 15-30)**:\n   - Implement automatic cleanup for outdated S3 objects\n   - Move EFS data to IA storage class\n   - Set up cost anomaly detection and budget alerts\n\nThe recommendations above should help you achieve your 20% cost reduction goal. Would you like me to provide more specific details about any particular area?",
+      "position": 2,
+      "width": "full"
+    }
+  ],
+  "filters": [],
+  "layout": "grid"
+}

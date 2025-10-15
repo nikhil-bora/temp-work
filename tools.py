@@ -72,23 +72,6 @@ Examples:
         }
     },
     {
-        "name": "get_cost_forecast",
-        "description": "Get AWS cost forecast using Cost Explorer.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "start_date": {"type": "string", "description": "Forecast start date YYYY-MM-DD"},
-                "end_date": {"type": "string", "description": "Forecast end date YYYY-MM-DD"},
-                "granularity": {
-                    "type": "string",
-                    "enum": ["DAILY", "MONTHLY"],
-                    "description": "Time granularity"
-                }
-            },
-            "required": ["start_date", "end_date"]
-        }
-    },
-    {
         "name": "analyze_cost_anomalies",
         "description": "Detect cost anomalies using AWS Cost Anomaly Detection.",
         "input_schema": {
@@ -405,6 +388,209 @@ IMPORTANT for grouped_bar and stacked_bar: The 'y' field MUST be a dictionary wh
                 }
             },
             "required": ["title", "chart_type", "data"]
+        }
+    },
+    {
+        "name": "get_cost_forecast",
+        "description": """Get AWS cost forecast using AWS Cost Explorer. Predicts future costs based on historical usage patterns.
+
+Use this tool when users ask about:
+- Future cost predictions
+- Next month's estimated costs
+- Budget planning for upcoming periods
+- Cost projections
+
+Example queries:
+- "What will my costs be next month?"
+- "Forecast AWS spending for the next 3 months"
+- "Predict costs for Q1 2026"
+
+Note: Forecast is based on historical data and current trends. Actual costs may vary.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "description": "Forecast start date (YYYY-MM-DD). Must be in the future."
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "Forecast end date (YYYY-MM-DD)"
+                },
+                "metric": {
+                    "type": "string",
+                    "enum": ["UNBLENDED_COST", "BLENDED_COST", "AMORTIZED_COST"],
+                    "description": "Cost metric to forecast"
+                },
+                "granularity": {
+                    "type": "string",
+                    "enum": ["DAILY", "MONTHLY"],
+                    "description": "Forecast granularity"
+                }
+            },
+            "required": ["start_date", "end_date"]
+        }
+    },
+    {
+        "name": "get_cost_anomalies",
+        "description": """Detect and retrieve cost anomalies using AWS Cost Anomaly Detection. Identifies unusual spending patterns.
+
+Use this tool when users ask about:
+- Unexpected cost spikes
+- Unusual spending patterns
+- Cost anomalies or outliers
+- Recent billing surprises
+
+Returns:
+- List of detected anomalies
+- Anomaly details (impact, root cause, service)
+- Time period of anomalies
+
+Example queries:
+- "Show me any cost anomalies this month"
+- "Were there any unusual charges recently?"
+- "Detect spending anomalies in the last 30 days"
+
+Note: Requires AWS Cost Anomaly Detection to be enabled.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "description": "Search start date (YYYY-MM-DD)"
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "Search end date (YYYY-MM-DD)"
+                },
+                "monitor_arn": {
+                    "type": "string",
+                    "description": "Optional specific anomaly monitor ARN"
+                }
+            },
+            "required": ["start_date", "end_date"]
+        }
+    },
+    {
+        "name": "get_rightsizing_recommendations",
+        "description": """Get EC2 and Lambda rightsizing recommendations from AWS Compute Optimizer. Identifies over-provisioned resources.
+
+Use this tool when users ask about:
+- Rightsizing opportunities
+- Over-provisioned instances
+- Cost optimization recommendations
+- Instance type recommendations
+- Potential cost savings
+
+Returns:
+- EC2 instance recommendations (instance type, size changes)
+- Lambda function recommendations (memory optimization)
+- Estimated monthly savings
+- Current vs recommended configurations
+
+Example queries:
+- "Show me rightsizing opportunities"
+- "What EC2 instances can I optimize?"
+- "How much can I save by rightsizing?"
+- "Give me cost optimization recommendations"
+
+Note: Requires AWS Compute Optimizer to be enabled and have at least 30 days of data.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "resource_type": {
+                    "type": "string",
+                    "enum": ["ec2", "lambda", "all"],
+                    "description": "Type of resources to get recommendations for"
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "get_budgets_status",
+        "description": """Get AWS Budgets and their current status. Shows budget limits, actual spend, and forecasted spend.
+
+Use this tool when users ask about:
+- Budget status and tracking
+- Budget alerts and thresholds
+- How much of the budget is used
+- Budget forecasts
+
+Returns:
+- List of budgets
+- Budget amounts and limits
+- Actual vs budgeted amounts
+- Forecast vs budget comparison
+- Alert status
+
+Example queries:
+- "Show me my AWS budgets"
+- "Am I over budget this month?"
+- "What's the status of my budgets?"
+- "How much budget do I have left?"
+
+Note: Returns budgets configured in AWS Budgets service.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string",
+                    "description": "AWS account ID (defaults to current account)"
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "get_dimension_values",
+        "description": """Get available values for a Cost Explorer dimension. Useful for filtering and grouping cost data.
+
+Use this tool when users ask about:
+- Available services in their account
+- Regions being used
+- Linked accounts
+- Available resource tags
+- Instance types in use
+
+Supported dimensions:
+- SERVICE: AWS services being used
+- REGION: AWS regions
+- LINKED_ACCOUNT: AWS accounts in organization
+- INSTANCE_TYPE: EC2 instance types
+- USAGE_TYPE: Detailed usage types
+- OPERATION: API operations
+- And more...
+
+Example queries:
+- "What AWS services am I using?"
+- "List all regions where I have resources"
+- "Show me all linked accounts"
+- "What EC2 instance types are running?"
+
+Note: This helps discover filterable dimensions for detailed cost analysis.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "dimension": {
+                    "type": "string",
+                    "enum": ["SERVICE", "REGION", "LINKED_ACCOUNT", "INSTANCE_TYPE", "USAGE_TYPE", "OPERATION", "AVAILABILITY_ZONE", "PLATFORM", "TENANCY"],
+                    "description": "Dimension to get values for"
+                },
+                "start_date": {
+                    "type": "string",
+                    "description": "Start date (YYYY-MM-DD)"
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "End date (YYYY-MM-DD)"
+                },
+                "search_string": {
+                    "type": "string",
+                    "description": "Optional search filter for dimension values"
+                }
+            },
+            "required": ["dimension", "start_date", "end_date"]
         }
     }
 ]

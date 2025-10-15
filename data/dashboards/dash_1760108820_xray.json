@@ -1,0 +1,86 @@
+{
+  "id": "dash_1760108820_xray",
+  "name": "xray",
+  "description": "Generated from conversation conv_20251010_190533_454987",
+  "created": 1760108820.033914,
+  "updated": 1760110341.549812,
+  "conversation_id": "conv_20251010_190533_454987",
+  "widgets": [
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190555.html",
+      "cols": 12,
+      "description": "Breakdown of AWS spending by service for September 2025",
+      "height": "559px",
+      "position": 0,
+      "title": "Top 15 AWS Services by Cost (September 2025)",
+      "type": "chart",
+      "width": "full"
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190729.html",
+      "description": "Scatter plot showing the relationship between EC2 instance CPU utilization and potential monthly savings from rightsizing",
+      "position": 1,
+      "title": "EC2 Instance CPU Utilization vs. Rightsizing Potential",
+      "type": "chart",
+      "width": "full"
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190755.html",
+      "description": "Grouped bar chart showing costs by operation type for major S3 buckets",
+      "position": 2,
+      "title": "Top S3 Buckets by Operation Cost (September 2025)",
+      "type": "chart",
+      "width": "full"
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190812.html",
+      "description": "Bar chart showing GB stored by S3 bucket (Standard storage class only)",
+      "position": 3,
+      "title": "S3 Storage by Bucket and Class (GB)",
+      "type": "chart",
+      "width": "full"
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190838.html",
+      "description": "CPU Utilization for the production-in RDS database instance",
+      "position": 4,
+      "title": "RDS CPU Utilization - production-in (September 2025)",
+      "type": "chart",
+      "width": "full"
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190857.html",
+      "description": "Bar chart showing the top 10 ELB (ALB/NLB) and EFS resources by cost",
+      "position": 5,
+      "title": "Top ELB and EFS Resources by Cost (September 2025)",
+      "type": "chart",
+      "width": "full"
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190910.html",
+      "description": "Pie chart showing the proportion of eligible costs covered by Savings Plans vs On-Demand",
+      "position": 6,
+      "title": "Savings Plans Coverage (September 2025)",
+      "type": "chart",
+      "width": "full"
+    },
+    {
+      "cols": 12,
+      "content": "# Comprehensive Optimization Recommendations\n\nBased on our exhaustive analysis, here are the key optimization opportunities and recommendations:\n\n## 1. EC2 Instance Optimization\n\n**Key Findings:**\n- We identified at least 10 EC2 instances (47.6%) that are significantly underutilized with average CPU utilization below 15%.\n- Most underutilized instances are r6g and r6a instance types, which are memory-optimized and relatively expensive.\n- Estimated monthly savings from EC2 instance rightsizing: **$364.32** (conservative estimate).\n\n**Recommendations:**\n1. **Rightsize underutilized r6g.2xlarge instances to r6g.xlarge** for instances with < 20% CPU utilization:\n   - Target 5 instances: Potential monthly savings of ~$146 per instance = **$730**\n   \n2. **Rightsize r6g.xlarge instances to r6g.large** for instances with < 10% CPU utilization:\n   - Target 3 instances: Potential monthly savings of ~$73 per instance = **$219**\n   \n3. **Implement auto-scaling policies** for workloads with variable demands rather than provisioning for peak capacity\n   \n4. **Consider Graviton (ARM) instances** for additional cost savings where workloads are compatible\n\n## 2. S3 Storage Optimization\n\n**Key Findings:**\n- Your S3 costs are dominated by GET operations (~$1,315) and ListBucket operations (~$563)\n- All storage is in Standard storage class with no lifecycle policies\n- Top bucket by cost: prod-ccm-transformed-data ($1,200+ monthly)\n\n**Recommendations:**\n1. **Implement S3 Intelligent-Tiering** for the top 5 buckets to automatically move infrequently accessed objects to cheaper storage tiers\n   - Potential savings: 15-20% on storage costs = **~$55-75/month**\n   \n2. **Create S3 lifecycle policies** to move objects older than 30 days to S3 Standard-IA and objects older than 90 days to Glacier\n   - Target buckets: prod-ccm-raw-data, prod-ccm-transformed-data, amnic-mimir\n   - Potential savings: 40-50% on storage costs = **~$130-160/month**\n   \n3. **Optimize S3 access patterns** to reduce GET and LIST operations:\n   - Implement caching for frequently accessed objects\n   - Consolidate LIST operations by using prefixes more effectively\n   - Potential savings: 10-15% = **~$180-270/month**\n\n## 3. RDS Optimization\n\n**Key Findings:**\n- The production-in RDS instance (MySQL db.m7g.large) shows extremely low utilization:\n  - Average CPU: 3.67%\n  - Maximum CPU: 11.86%\n  - Average connections: 246\n\n**Recommendations:**\n1. **Downsize the production-in MySQL instance** from db.m7g.large to db.m7g.small\n   - Current cost: $344.88/month\n   - Estimated new cost: ~$115/month\n   - Potential savings: **~$230/month**\n   \n2. **Evaluate production-msyql-us** for potential downsizing (currently db.m7g.large at $242.64/month)\n   - Potential additional savings: **~$120/month**\n\n## 4. ELB and EFS Optimization\n\n**Key Findings:**\n- Two EFS filesystems account for $1,246.93 in monthly costs\n- Several load balancers appear to be for similar environments/purposes\n\n**Recommendations:**\n1. **Audit EFS usage patterns** and consider migrating infrequently accessed data to EFS Infrequent Access storage class\n   - Potential savings: 20-30% = **~$250-370/month**\n   \n2. **Consolidate load balancers** where possible\n   - Consider shared ALBs with path-based routing instead of dedicated load balancers\n   - Potential savings: 10-15% = **~$150-220/month**\n\n## 5. Savings Plans and Reserved Instances\n\n**Key Findings:**\n- Current Savings Plans coverage: 39.87%\n- No Reserved Instance usage\n- Significant on-demand spending: $2,743.48 eligible for coverage\n\n**Recommendations:**\n1. **Purchase additional Compute Savings Plans** to increase coverage to at least 70%\n   - Target additional coverage: ~$1,100/month of on-demand spending\n   - Potential savings with 1-year commitment: ~20% = **~$220/month**\n   - Potential savings with 3-year commitment: ~30% = **~$330/month**\n\n## 6. Tag Compliance Improvement\n\n**Key Findings:**\n- Nearly all resources (>99%) are missing essential tags (Environment, Team, Project)\n- Untagged resources total cost: $28,000+ per month\n\n**Recommendations:**\n1. **Implement tag enforcement policies** through AWS Organizations SCPs or IAM policies\n   - Require tags for resource creation\n   \n2. **Create automated tagging for existing resources** based on naming conventions or resource groups\n   \n3. **Establish tag governance process** for cost allocation and showback/chargeback\n\n## Total Estimated Monthly Savings\n\nCombining all recommendations:\n\n| Optimization Area | Conservative Savings | Aggressive Savings |\n|-------------------|----------------------|-------------------|\n| EC2 Rightsizing   | $364                 | $949              |\n| S3 Optimization   | $365                 | $505              |\n| RDS Optimization  | $230                 | $350              |\n| ELB/EFS Optimization | $400              | $590              |\n| Savings Plans     | $220                 | $330              |\n| **TOTAL**         | **$1,579/month**     | **$2,724/month**  |\n| **Annual Savings**| **$18,948/year**     | **$32,688/year**  |\n\n## Implementation Prioritization\n\n1. **EC2 Rightsizing** - Highest immediate impact with minimal risk\n2. **Savings Plans** - Easy implementation with guaranteed savings\n3. **RDS Optimization** - Simple changes with substantial savings\n4. **S3 Lifecycle Policies** - Medium effort with good returns\n5. **ELB/EFS Optimization** - Requires more planning but worthwhile\n6. **Tag Compliance** - Long-term strategic investment\n\nWould you like me to create a detailed implementation plan for any of these specific areas?",
+      "position": 8,
+      "title": "Analysis",
+      "type": "text",
+      "width": "full"
+    },
+    {
+      "chart_url": "http://localhost:8000/charts/chart_20251010_190940.html",
+      "cols": 8,
+      "description": "Bar chart showing top AWS services with resources missing required tags (Environment, Team, Project)",
+      "height": "200px",
+      "position": 7,
+      "title": "Top Untagged Resources by Cost (September 2025)",
+      "type": "chart",
+      "width": "full"
+    }
+  ]
+}

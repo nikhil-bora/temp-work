@@ -8,9 +8,10 @@ import asyncio
 import json
 import sys
 import logging
+from datetime import datetime
 from pathlib import Path
 from threading import Thread
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 from flask_sock import Sock
 from simple_websocket import ConnectionClosed
 
@@ -36,8 +37,9 @@ from tools import AVAILABLE_TOOLS
 from kpi_manager import kpi_manager
 from conversation_manager import conversation_manager
 from context_manager import ContextManager
+from dashboard_manager import dashboard_manager
 
-# Initialize context manager
+# Initialize managers
 context_manager = ContextManager()
 
 # Initialize Flask app
@@ -285,6 +287,168 @@ def refresh_kpi(kpi_id):
                     'updated': updated_kpi['last_updated']
                 })
 
+        elif kpi['query_type'] == 'mcp_forecast':
+            # Handle MCP cost forecast queries
+            from mcp_aws_client import mcp_client
+            from datetime import datetime, timedelta
+
+            if kpi['query'] == 'get_cost_forecast_next_month':
+                today = datetime.now()
+                # Start from tomorrow
+                start = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+                # End at end of next month
+                end_of_next_month = (today.replace(day=1) + timedelta(days=62)).replace(day=1) - timedelta(days=1)
+                end = end_of_next_month.strftime('%Y-%m-%d')
+
+                result = mcp_client.get_cost_forecast(start, end, 'UNBLENDED_COST', 'MONTHLY')
+
+                if result.get('success'):
+                    total_forecast = float(result.get('total', {}).get('Amount', 0))
+                    kpi_manager.update_kpi_value(kpi_id, total_forecast)
+
+                    updated_kpi = kpi_manager.get_kpi(kpi_id)
+                    return jsonify({
+                        'kpi_id': kpi_id,
+                        'value': total_forecast,
+                        'updated': updated_kpi['last_updated']
+                    })
+                else:
+                    return jsonify({'error': result.get('error', 'Failed to get forecast')}), 400
+
+            elif kpi['query'] == 'get_mtd_vs_forecast':
+                # Get MTD cost from CUR and forecast from Cost Explorer
+                today = datetime.now()
+
+                # Get MTD (month-to-date) cost
+                start_of_month = today.replace(day=1).strftime('%Y-%m-%d')
+                end_of_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
+                # Query MTD cost
+                import os
+                from dotenv import load_dotenv
+                load_dotenv()
+
+                db_name = os.getenv('CUR_DATABASE_NAME')
+                table_name = os.getenv('CUR_TABLE_NAME')
+                quoted_table = f'"{db_name}"."{table_name}"'
+
+                mtd_query = f'''
+                SELECT ROUND(SUM("lineitem/unblendedcost"), 2) as cost
+                FROM {quoted_table}
+                WHERE "lineitem/usagestartdate" >= DATE_TRUNC('month', CURRENT_DATE)
+                AND "lineitem/usagestartdate" < CURRENT_DATE
+                '''
+
+                mtd_result = execute_athena_query(mtd_query)
+                mtd_cost = 0
+                if mtd_result.get('data') and len(mtd_result['data']) > 0:
+                    mtd_cost = float(list(mtd_result['data'][0].values())[0] or 0)
+
+                # Get forecast for rest of month
+                tomorrow = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+                forecast_end = (end_of_month + timedelta(days=1)).strftime('%Y-%m-%d')
+
+                forecast_result = mcp_client.get_cost_forecast(tomorrow, forecast_end, 'UNBLENDED_COST', 'MONTHLY')
+
+                if forecast_result.get('success'):
+                    remaining_forecast = float(forecast_result.get('total', {}).get('Amount', 0))
+                    total_forecast = mtd_cost + remaining_forecast
+
+                    # Format as "MTD / Forecast"
+                    value_text = f"${mtd_cost:,.2f} / ${total_forecast:,.2f}"
+                    kpi_manager.update_kpi_value(kpi_id, value_text)
+
+                    updated_kpi = kpi_manager.get_kpi(kpi_id)
+                    return jsonify({
+                        'kpi_id': kpi_id,
+                        'value': value_text,
+                        'updated': updated_kpi['last_updated']
+                    })
+                else:
+                    # Fallback to just MTD if forecast fails
+                    value_text = f"${mtd_cost:,.2f} (forecast unavailable)"
+                    kpi_manager.update_kpi_value(kpi_id, value_text)
+
+                    updated_kpi = kpi_manager.get_kpi(kpi_id)
+                    return jsonify({
+                        'kpi_id': kpi_id,
+                        'value': value_text,
+                        'updated': updated_kpi['last_updated']
+                    })
+
+        elif kpi['query_type'] == 'mcp_anomaly':
+            # Handle MCP anomaly detection queries
+            from mcp_aws_client import mcp_client
+            from datetime import datetime, timedelta
+
+            if kpi['query'] == 'get_anomalies_30d':
+                end = datetime.now()
+                start = end - timedelta(days=30)
+
+                result = mcp_client.get_anomalies(
+                    start.strftime('%Y-%m-%d'),
+                    end.strftime('%Y-%m-%d')
+                )
+
+                if result.get('success'):
+                    anomaly_count = result.get('count', 0)
+                    kpi_manager.update_kpi_value(kpi_id, anomaly_count)
+
+                    updated_kpi = kpi_manager.get_kpi(kpi_id)
+                    return jsonify({
+                        'kpi_id': kpi_id,
+                        'value': anomaly_count,
+                        'updated': updated_kpi['last_updated']
+                    })
+                else:
+                    return jsonify({'error': result.get('error', 'Failed to get anomalies')}), 400
+
+        elif kpi['query_type'] == 'mcp_optimizer':
+            # Handle MCP Compute Optimizer queries
+            from mcp_aws_client import mcp_client
+
+            if kpi['query'] == 'get_ec2_savings':
+                result = mcp_client.get_ec2_recommendations()
+
+                if result.get('success'):
+                    savings = result.get('potential_savings', 0)
+                    kpi_manager.update_kpi_value(kpi_id, savings)
+
+                    updated_kpi = kpi_manager.get_kpi(kpi_id)
+                    return jsonify({
+                        'kpi_id': kpi_id,
+                        'value': savings,
+                        'updated': updated_kpi['last_updated']
+                    })
+                else:
+                    return jsonify({'error': result.get('error', 'Failed to get recommendations')}), 400
+
+        elif kpi['query_type'] == 'mcp_budget':
+            # Handle MCP Budget queries
+            from mcp_aws_client import mcp_client
+
+            if kpi['query'] == 'get_budget_overages':
+                result = mcp_client.get_budgets()
+
+                if result.get('success'):
+                    over_budget_count = 0
+                    for budget in result.get('budgets', []):
+                        actual = float(budget.get('CalculatedSpend', {}).get('ActualSpend', {}).get('Amount', 0))
+                        limit = float(budget.get('BudgetLimit', {}).get('Amount', 0))
+                        if actual > limit:
+                            over_budget_count += 1
+
+                    kpi_manager.update_kpi_value(kpi_id, over_budget_count)
+
+                    updated_kpi = kpi_manager.get_kpi(kpi_id)
+                    return jsonify({
+                        'kpi_id': kpi_id,
+                        'value': over_budget_count,
+                        'updated': updated_kpi['last_updated']
+                    })
+                else:
+                    return jsonify({'error': result.get('error', 'Failed to get budgets')}), 400
+
         return jsonify({'error': 'Query type not supported yet'}), 400
 
     except Exception as e:
@@ -466,7 +630,9 @@ def upload_context_file():
     # Detect file type
     filename_lower = file.filename.lower()
     image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
+    pdf_extensions = ('.pdf',)
     is_image = filename_lower.endswith(image_extensions)
+    is_pdf = filename_lower.endswith(pdf_extensions)
 
     try:
         if is_image:
@@ -493,6 +659,75 @@ def upload_context_file():
 
             context = context_manager.add_context(name, content, description, context_type="image")
             return jsonify(context), 201
+
+        elif is_pdf:
+            # Handle PDF file - store as base64 with text extraction
+            import io
+            try:
+                import PyPDF2
+
+                file_data = file.read()
+
+                # Extract text from PDF
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_data))
+                text_content = ""
+                total_pages = len(pdf_reader.pages)
+
+                for page_num, page in enumerate(pdf_reader.pages):
+                    text_content += f"\n--- Page {page_num + 1} of {total_pages} ---\n"
+                    text_content += page.extract_text()
+
+                # Check if content is too large (rough estimate: 1 token ≈ 4 chars)
+                # Claude has 200k token context limit, leave room for conversation
+                # Max ~150k tokens for PDF = ~600k characters
+                MAX_CHARS = 600000
+
+                if len(text_content) > MAX_CHARS:
+                    # Content is too large - create a summary instead of storing full text
+                    logger.warning(f"PDF too large ({len(text_content)} chars), creating summary")
+
+                    summary = f"""PDF Document: {name}
+Total Pages: {total_pages}
+Size: {len(text_content):,} characters
+
+⚠️ This PDF is too large to load entirely into context ({len(text_content):,} characters).
+
+Available options:
+1. Ask specific questions about the document (the agent can search through it)
+2. Request specific page ranges (e.g., "show me pages 1-10")
+3. Search for specific keywords or topics
+
+First 10 pages preview:
+"""
+                    # Add preview of first 10 pages
+                    preview_pages = []
+                    for page_num in range(min(10, total_pages)):
+                        preview_pages.append(f"\n--- Page {page_num + 1} ---\n")
+                        preview_pages.append(pdf_reader.pages[page_num].extract_text()[:2000])  # First 2000 chars per page
+
+                    summary += ''.join(preview_pages)
+                    summary += f"\n\n... ({total_pages - 10} more pages available) ..."
+
+                    # Store PDF base64 separately for potential retrieval
+                    base64_pdf = base64.b64encode(file_data).decode('utf-8')
+                    content = f"PDF:{base64_pdf}\n\nSUMMARY:\n{summary}\n\nFULL_TEXT_AVAILABLE:true"
+                else:
+                    # Store both the extracted text and base64 PDF
+                    base64_pdf = base64.b64encode(file_data).decode('utf-8')
+                    content = f"PDF:{base64_pdf}\n\nEXTRACTED_TEXT:\n{text_content}"
+
+                context = context_manager.add_context(name, content, description, context_type="pdf")
+                return jsonify(context), 201
+
+            except ImportError:
+                # If PyPDF2 not installed, store as binary base64
+                logger.warning("PyPDF2 not installed, storing PDF without text extraction")
+                file_data = file.read()
+                base64_pdf = base64.b64encode(file_data).decode('utf-8')
+                content = f"application/pdf:{base64_pdf}"
+                context = context_manager.add_context(name, content, description, context_type="pdf")
+                return jsonify(context), 201
+
         else:
             # Handle text file
             content = file.read().decode('utf-8')
@@ -802,6 +1037,250 @@ def process_message_background(user_message: str, conversation_id: str, session_
         })
 
 
+# ===== Dashboard Filter Endpoints =====
+
+@app.route('/api/dashboards/<dashboard_id>/filters', methods=['GET'])
+def get_dashboard_filters(dashboard_id):
+    """Get all filters for a dashboard"""
+    dashboard = dashboard_manager.get_dashboard(dashboard_id)
+    if not dashboard:
+        return jsonify({'error': 'Dashboard not found'}), 404
+
+    filters = dashboard.get('filters', [])
+    return jsonify({'filters': filters})
+
+
+@app.route('/api/dashboards/<dashboard_id>/filters', methods=['POST'])
+def add_dashboard_filter(dashboard_id):
+    """Add a filter to dashboard"""
+    try:
+        logger.info(f"Adding filter to dashboard {dashboard_id}")
+        data = request.json
+        logger.info(f"Filter data: {data}")
+
+        if not data or 'type' not in data:
+            logger.error("Filter type is missing")
+            return jsonify({'error': 'Filter type is required'}), 400
+
+        # Check if dashboard exists
+        dashboard = dashboard_manager.get_dashboard(dashboard_id)
+        if not dashboard:
+            logger.error(f"Dashboard {dashboard_id} not found")
+            return jsonify({'error': f'Dashboard {dashboard_id} not found'}), 404
+
+        success = dashboard_manager.add_filter(dashboard_id, data)
+
+        if success:
+            dashboard = dashboard_manager.get_dashboard(dashboard_id)
+            logger.info(f"Filter added successfully. Total filters: {len(dashboard.get('filters', []))}")
+            return jsonify({'success': True, 'filters': dashboard.get('filters', [])})
+        else:
+            logger.error("Failed to add filter")
+            return jsonify({'error': 'Failed to add filter'}), 500
+
+    except Exception as e:
+        logger.error(f"Error adding filter: {e}", exc_info=True)
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/filters/<filter_id>', methods=['PUT'])
+def update_dashboard_filter(dashboard_id, filter_id):
+    """Update a dashboard filter"""
+    data = request.json
+
+    success = dashboard_manager.update_filter(dashboard_id, filter_id, data)
+
+    if success:
+        dashboard = dashboard_manager.get_dashboard(dashboard_id)
+        return jsonify({'success': True, 'filters': dashboard.get('filters', [])})
+    else:
+        return jsonify({'error': 'Failed to update filter'}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/filters/<filter_id>', methods=['DELETE'])
+def delete_dashboard_filter(dashboard_id, filter_id):
+    """Delete a dashboard filter"""
+    success = dashboard_manager.remove_filter(dashboard_id, filter_id)
+
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Failed to delete filter'}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/widgets/<widget_id>/filters', methods=['POST'])
+def link_widget_filters(dashboard_id, widget_id):
+    """Link filters to a widget"""
+    data = request.json
+
+    if not data or 'filter_ids' not in data:
+        return jsonify({'error': 'filter_ids array is required'}), 400
+
+    success = dashboard_manager.apply_filters_to_widget(dashboard_id, widget_id, data['filter_ids'])
+
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Failed to link filters'}), 500
+
+
+@app.route('/api/filter-presets', methods=['GET'])
+def get_filter_presets():
+    """Get filter presets for quick selection"""
+    presets = dashboard_manager.get_filter_presets()
+    return jsonify(presets)
+
+
+@app.route('/api/filter-values/<dimension>', methods=['GET'])
+def get_filter_dimension_values(dimension):
+    """Get available values for a filter dimension"""
+    try:
+        from mcp_aws_client import mcp_client
+        from datetime import datetime, timedelta
+
+        # Default to last 30 days
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+
+        # Map filter types to AWS dimensions
+        dimension_map = {
+            'service': 'SERVICE',
+            'region': 'REGION',
+            'account': 'LINKED_ACCOUNT',
+            'instance_type': 'INSTANCE_TYPE',
+            'usage_type': 'USAGE_TYPE'
+        }
+
+        aws_dimension = dimension_map.get(dimension, dimension.upper())
+
+        result = mcp_client.get_dimension_values(
+            dimension=aws_dimension,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        if result.get('success'):
+            # Extract just the values from the response
+            values = [dv.get('Value') for dv in result.get('values', [])]
+            return jsonify({
+                'success': True,
+                'dimension': dimension,
+                'values': sorted(values)[:50]  # Limit to 50 values
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Unknown error')
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error fetching dimension values: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/analytics', methods=['GET'])
+def dashboard_analytics_view(dashboard_id):
+    """Analytics dashboard view with filters"""
+    logger.info(f"Loading analytics view for dashboard: {dashboard_id}")
+
+    # Verify dashboard exists
+    dashboard = dashboard_manager.get_dashboard(dashboard_id)
+    if not dashboard:
+        logger.error(f"Dashboard {dashboard_id} not found")
+        return "Dashboard not found", 404
+
+    logger.info(f"Rendering analytics for dashboard: {dashboard.get('name', dashboard_id)}")
+    return render_template('dashboard_analytics.html', dashboard_id=dashboard_id, dashboard_name=dashboard.get('name', 'Dashboard'))
+
+
+@app.route('/api/charts/<chart_id>/render', methods=['POST'])
+def render_chart_with_filters():
+    """Generate chart dynamically with filters"""
+    try:
+        from chart_generator import chart_generator
+
+        chart_id = request.view_args.get('chart_id')
+        filters = request.json or {}
+
+        logger.info(f"Rendering chart {chart_id} with filters: {filters}")
+
+        # Generate chart with filters
+        chart_url = chart_generator.generate_chart(chart_id, filters)
+
+        return jsonify({
+            'success': True,
+            'chart_url': chart_url
+        })
+
+    except Exception as e:
+        logger.error(f"Error rendering chart: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/widgets', methods=['GET'])
+def get_dashboard_widgets_with_filters(dashboard_id):
+    """Get dashboard widgets with applied filters"""
+    try:
+        from chart_generator import chart_generator
+
+        # Get dashboard
+        dashboard = dashboard_manager.get_dashboard(dashboard_id)
+        if not dashboard:
+            return jsonify({'error': 'Dashboard not found'}), 404
+
+        # Get active filters
+        filters_dict = {}
+        for filter_obj in dashboard.get('filters', []):
+            if filter_obj.get('type') == 'date_range':
+                filters_dict['start_date'] = filter_obj.get('start')
+                filters_dict['end_date'] = filter_obj.get('end')
+            elif filter_obj.get('type') in ['service', 'region', 'account']:
+                filters_dict[filter_obj['type']] = filter_obj.get('value')
+
+        # Process each widget
+        widgets = []
+        for widget in dashboard.get('widgets', []):
+            widget_copy = widget.copy()
+
+            # If chart widget has a template, generate filtered chart
+            if widget.get('type') == 'chart' and widget.get('chart_url'):
+                # Extract chart ID from URL
+                chart_url = widget['chart_url']
+                chart_filename = chart_url.split('/')[-1]
+                chart_id = chart_filename.replace('.html', '')
+
+                # Check if template exists
+                template = chart_generator.get_chart_template(chart_id)
+                if template and filters_dict:
+                    try:
+                        # Generate filtered chart
+                        new_chart_url = chart_generator.generate_chart(chart_id, filters_dict)
+                        widget_copy['chart_url'] = f"http://localhost:8000{new_chart_url}"
+                        widget_copy['filtered'] = True
+                    except Exception as e:
+                        logger.warning(f"Could not generate filtered chart for {chart_id}: {e}")
+                        widget_copy['filtered'] = False
+                else:
+                    widget_copy['filtered'] = False
+
+            widgets.append(widget_copy)
+
+        return jsonify({
+            'widgets': widgets,
+            'filters': dashboard.get('filters', [])
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting filtered widgets: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 def main():
     """Run the web server"""
     print("\n" + "="*60)
@@ -822,6 +1301,144 @@ def main():
         )
     except KeyboardInterrupt:
         print("\n\n👋 Shutting down gracefully...\n")
+
+
+# ===== Dashboard Management Endpoints =====
+
+@app.route('/api/dashboards', methods=['GET'])
+def list_custom_dashboards():
+    """Get all custom dashboards"""
+    try:
+        dashboards = dashboard_manager.list_dashboards()
+        return jsonify({'dashboards': dashboards})
+    except Exception as e:
+        logger.error(f"Error listing dashboards: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards', methods=['POST'])
+def create_custom_dashboard():
+    """Create a new custom dashboard"""
+    try:
+        data = request.json
+        name = data.get('name')
+        description = data.get('description', '')
+        conversation_id = data.get('conversation_id')
+
+        if not name:
+            return jsonify({'error': 'Name is required'}), 400
+
+        # If creating from conversation, extract widgets
+        if conversation_id:
+            messages = conversation_manager.get_conversation_messages(conversation_id)
+            dashboard = dashboard_manager.create_from_conversation(
+                conversation_id, name, messages
+            )
+        else:
+            dashboard = dashboard_manager.create_dashboard(name, description, conversation_id)
+
+        return jsonify(dashboard)
+    except Exception as e:
+        logger.error(f"Error creating dashboard: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>', methods=['GET'])
+def get_custom_dashboard(dashboard_id):
+    """Get a specific custom dashboard"""
+    try:
+        dashboard = dashboard_manager.get_dashboard(dashboard_id)
+        if not dashboard:
+            return jsonify({'error': 'Dashboard not found'}), 404
+        return jsonify(dashboard)
+    except Exception as e:
+        logger.error(f"Error getting dashboard: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>', methods=['PUT'])
+def update_custom_dashboard(dashboard_id):
+    """Update custom dashboard"""
+    try:
+        data = request.json
+        success = dashboard_manager.update_dashboard(
+            dashboard_id,
+            name=data.get('name'),
+            description=data.get('description'),
+            widgets=data.get('widgets')
+        )
+        if not success:
+            return jsonify({'error': 'Dashboard not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error updating dashboard: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>', methods=['DELETE'])
+def delete_custom_dashboard(dashboard_id):
+    """Delete custom dashboard"""
+    try:
+        success = dashboard_manager.delete_dashboard(dashboard_id)
+        if not success:
+            return jsonify({'error': 'Dashboard not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error deleting dashboard: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/widgets', methods=['POST'])
+def add_dashboard_widget(dashboard_id):
+    """Add a widget to custom dashboard"""
+    try:
+        widget = request.json
+        success = dashboard_manager.add_widget(dashboard_id, widget)
+        if not success:
+            return jsonify({'error': 'Dashboard not found'}), 404
+        return jsonify({'success': True, 'widget': widget})
+    except Exception as e:
+        logger.error(f"Error adding widget: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/widgets/<widget_id>', methods=['PUT'])
+def update_dashboard_widget(dashboard_id, widget_id):
+    """Update a dashboard widget"""
+    try:
+        updates = request.json
+        success = dashboard_manager.update_widget(dashboard_id, widget_id, updates)
+        if not success:
+            return jsonify({'error': 'Dashboard or widget not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error updating widget: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards/<dashboard_id>/widgets/<widget_id>', methods=['DELETE'])
+def remove_dashboard_widget(dashboard_id, widget_id):
+    """Remove a widget from custom dashboard"""
+    try:
+        success = dashboard_manager.remove_widget(dashboard_id, widget_id)
+        if not success:
+            return jsonify({'error': 'Dashboard not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error removing widget: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/dashboards-page', methods=['GET'])
+def dashboards_list_page():
+    """Dashboards list page"""
+    return render_template('dashboards.html')
+
+
+@app.route('/api/dashboard/<dashboard_id>/view', methods=['GET'])
+def dashboard_view_page(dashboard_id):
+    """Dashboard viewer page"""
+    return render_template('dashboard_view.html', dashboard_id=dashboard_id)
 
 
 if __name__ == "__main__":

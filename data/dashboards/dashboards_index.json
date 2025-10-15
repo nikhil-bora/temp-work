@@ -1,0 +1,65 @@
+{
+  "dash_1760108820_xray": {
+    "id": "dash_1760108820_xray",
+    "name": "xray",
+    "description": "Generated from conversation conv_20251010_190533_454987",
+    "created": 1760108820.033914,
+    "updated": 1760110341.549812
+  },
+  "dash_1760110372_cfo_": {
+    "id": "dash_1760110372_cfo_",
+    "name": "cfo ",
+    "description": "Generated from conversation conv_20251010_183250_131085",
+    "created": 1760110372.250721,
+    "updated": 1760110372.250721
+  },
+  "dash_1760120350_utilization": {
+    "id": "dash_1760120350_utilization",
+    "name": "utilization",
+    "description": "Generated from conversation conv_20251010_234522_101387",
+    "created": 1760120350.191915,
+    "updated": 1760120387.200316
+  },
+  "dash_1760120888_network": {
+    "id": "dash_1760120888_network",
+    "name": "network",
+    "description": "Generated from conversation conv_20251010_235318_957485",
+    "created": 1760120888.4981408,
+    "updated": 1760120888.4981408
+  },
+  "dash_1760122299_network_ext": {
+    "id": "dash_1760122299_network_ext",
+    "name": "network ext",
+    "description": "Generated from conversation conv_20251010_235318_957485",
+    "created": 1760122299.510803,
+    "updated": 1760122299.510803
+  },
+  "dash_1760186563_cfo_report_q3": {
+    "id": "dash_1760186563_cfo_report_q3",
+    "name": "cfo report q3",
+    "description": "Generated from conversation conv_20251011_181027_227484",
+    "created": 1760186563.9508271,
+    "updated": 1760186619.483019
+  },
+  "dash_1760186852_test": {
+    "id": "dash_1760186852_test",
+    "name": "test",
+    "description": "Generated from conversation conv_20251011_181635_204314",
+    "created": 1760186852.758305,
+    "updated": 1760186852.758399
+  },
+  "dash_1760332817_20%": {
+    "id": "dash_1760332817_20%",
+    "name": "20%",
+    "description": "Generated from conversation conv_20251013_104700_402579",
+    "created": 1760332817.7294989,
+    "updated": 1760506195.537336
+  },
+  "dash_1760335603_temp": {
+    "id": "dash_1760335603_temp",
+    "name": "temp",
+    "description": "Generated from conversation conv_20251013_105630_937585",
+    "created": 1760335603.8286772,
+    "updated": 1760506492.603356
+  }
+}

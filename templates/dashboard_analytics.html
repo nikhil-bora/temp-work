@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - FinOps Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-blue: #33ccff;
+            --primary-purple: #a826b3;
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151b33;
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --border-color: #2d3748;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+        }
+
+        .analytics-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Header */
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary));
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .dashboard-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .dashboard-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-bar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .filter-bar-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-btn:hover {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            border-color: var(--primary-blue);
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            border-color: var(--primary-blue);
+        }
+
+        /* Active Filters */
+        .active-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .filter-chip {
+            background: var(--bg-primary);
+            border: 1px solid var(--primary-blue);
+            border-radius: 20px;
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-chip-remove {
+            background: none;
+            border: none;
+            color: var(--primary-blue);
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        /* Widgets Grid */
+        .widgets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .widget-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .widget-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(51, 204, 255, 0.15);
+        }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .widget-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .widget-menu-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1.2rem;
+        }
+
+        .widget-content {
+            min-height: 300px;
+        }
+
+        .widget-chart {
+            position: relative;
+            height: 300px;
+        }
+
+        .widget-chart-iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .widget-text-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 500px;
+            padding: 1rem 0;
+        }
+
+        /* Filter Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            margin: 3% auto;
+            padding: 2rem;
+            border-radius: 16px;
+            max-width: 600px;
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 2rem;
+            line-height: 1;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .filter-preset {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-preset:hover {
+            border-color: var(--primary-blue);
+            background: linear-gradient(135deg, rgba(168, 38, 179, 0.1), rgba(51, 204, 255, 0.1));
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="analytics-container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div style="margin-bottom: 1rem;">
+                <a href="/api/dashboards-page" style="color: var(--primary-blue); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    ← Back to Dashboards
+                </a>
+            </div>
+            <div class="dashboard-title" id="dashboardTitle">{{ dashboard_name }}</div>
+            <div class="dashboard-description" id="dashboardDescription"></div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-bar-header">
+                <div class="filter-bar-title">
+                    🔍 Filters
+                </div>
+                <div>
+                    <button class="filter-btn" onclick="showFilterModal()">
+                        ➕ Add Filter
+                    </button>
+                    <button class="filter-btn" onclick="clearAllFilters()">
+                        🗑️ Clear All
+                    </button>
+                </div>
+            </div>
+
+            <div class="filter-controls" id="filterPresets">
+                <div style="color: var(--text-secondary); font-size: 0.9rem; padding: 0.5rem 0;">
+                    💡 <strong>Get Started:</strong> Click "➕ Add Filter" above or select a quick preset below to filter your dashboard
+                </div>
+            </div>
+
+            <div class="active-filters" id="activeFilters">
+                <!-- Active filter chips will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Widgets Grid -->
+        <div class="widgets-grid" id="widgetsGrid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <h3>Loading dashboard...</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Filter Modal -->
+    <div id="filterModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Add Filter</div>
+                <button class="close-modal" onclick="closeFilterModal()">&times;</button>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Filter Type</label>
+                <select class="form-select" id="filterType" onchange="updateFilterForm()">
+                    <option value="">Select filter type...</option>
+                    <option value="date_range">Date Range</option>
+                    <option value="service">Service</option>
+                    <option value="region">Region</option>
+                    <option value="tag">Tag</option>
+                    <option value="account">Account</option>
+                </select>
+            </div>
+
+            <div id="filterFormContent">
+                <!-- Dynamic form content based on filter type -->
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Quick Presets</label>
+                <div id="filterPresetsModal">
+                    <!-- Presets will be loaded here -->
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="addFilter()">Add Filter</button>
+        </div>
+    </div>
+
+    <script>
+        const dashboardId = '{{ dashboard_id }}';
+        let dashboard = null;
+        let activeFilters = {};
+        let chartInstances = {};
+
+        // Load dashboard
+        async function loadDashboard() {
+            try {
+                console.log('Loading dashboard:', dashboardId);
+                const response = await fetch(`/api/dashboards/${dashboardId}`);
+                dashboard = await response.json();
+                console.log('Dashboard loaded:', dashboard);
+
+                // Ensure filters array exists
+                if (!dashboard.filters) {
+                    dashboard.filters = [];
+                }
+
+                // Update header
+                document.getElementById('dashboardTitle').textContent = dashboard.name;
+                document.getElementById('dashboardDescription').textContent = dashboard.description || '';
+
+                // Load filters
+                await loadFilters();
+
+                // Load presets
+                await loadFilterPresets();
+
+                // Load widgets with filters applied
+                await loadWidgetsWithFilters();
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                alert('Error loading dashboard: ' + error.message);
+            }
+        }
+
+        // Load widgets with filters applied
+        async function loadWidgetsWithFilters() {
+            try {
+                console.log('Loading widgets with filters for dashboard:', dashboardId);
+                const response = await fetch(`/api/dashboards/${dashboardId}/widgets`);
+
+                if (!response.ok) {
+                    console.warn('Filtered widgets API not available, falling back to static widgets');
+                    renderWidgets();
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('Loaded widgets with filters:', data);
+
+                // Update dashboard with filtered widgets
+                if (data.widgets) {
+                    dashboard.widgets = data.widgets;
+                }
+
+                renderWidgets();
+            } catch (error) {
+                console.error('Error loading filtered widgets:', error);
+                // Fallback to static widgets
+                renderWidgets();
+            }
+        }
+
+        // Load filters
+        async function loadFilters() {
+            try {
+                const response = await fetch(`/api/dashboards/${dashboardId}/filters`);
+                const data = await response.json();
+
+                activeFilters = {};
+                (data.filters || []).forEach(filter => {
+                    activeFilters[filter.id] = filter;
+                });
+
+                renderActiveFilters();
+            } catch (error) {
+                console.error('Error loading filters:', error);
+            }
+        }
+
+        // Load filter presets
+        async function loadFilterPresets() {
+            try {
+                const response = await fetch('/api/filter-presets');
+                const presets = await response.json();
+
+                const presetsContainer = document.getElementById('filterPresets');
+                presetsContainer.innerHTML = '';
+
+                // Add help text
+                const helpText = document.createElement('div');
+                helpText.style.cssText = 'color: var(--text-secondary); font-size: 0.9rem; padding: 0.5rem 0; margin-bottom: 0.75rem;';
+                helpText.innerHTML = '💡 <strong>Quick Filters:</strong> Click a preset below to instantly filter your dashboard';
+                presetsContainer.appendChild(helpText);
+
+                // Create button container
+                const btnContainer = document.createElement('div');
+                btnContainer.style.cssText = 'display: flex; gap: 0.75rem; flex-wrap: wrap;';
+
+                // Add date range presets
+                presets.date_ranges.slice(0, 5).forEach(preset => {
+                    const btn = document.createElement('button');
+                    btn.className = 'filter-btn';
+                    btn.textContent = `📅 ${preset.name}`;
+                    btn.onclick = () => applyPresetFilter(preset);
+                    btnContainer.appendChild(btn);
+                });
+
+                presetsContainer.appendChild(btnContainer);
+            } catch (error) {
+                console.error('Error loading presets:', error);
+            }
+        }
+
+        // Apply preset filter
+        async function applyPresetFilter(preset) {
+            try {
+                console.log('Applying preset filter:', preset);
+                const response = await fetch(`/api/dashboards/${dashboardId}/filters`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: preset.type,
+                        name: preset.name,
+                        start: preset.start,
+                        end: preset.end
+                    })
+                });
+
+                console.log('Filter response status:', response.status);
+                const data = await response.json();
+                console.log('Filter response data:', data);
+
+                if (response.ok) {
+                    await loadFilters();
+                    await loadWidgetsWithFilters(); // Reload widgets with new filters
+                    console.log('Filter applied successfully');
+                } else {
+                    alert('Error applying filter: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error applying preset:', error);
+                alert('Error applying filter: ' + error.message);
+            }
+        }
+
+        // Render active filters
+        function renderActiveFilters() {
+            const container = document.getElementById('activeFilters');
+            container.innerHTML = '';
+
+            Object.values(activeFilters).forEach(filter => {
+                const chip = document.createElement('div');
+                chip.className = 'filter-chip';
+
+                let filterText = filter.name || filter.type;
+                if (filter.start && filter.end) {
+                    filterText += `: ${filter.start} to ${filter.end}`;
+                } else if (filter.value) {
+                    filterText += `: ${filter.value}`;
+                }
+
+                chip.innerHTML = `
+                    <span>${filterText}</span>
+                    <button class="filter-chip-remove" onclick="removeFilter('${filter.id}')">×</button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        // Remove filter
+        async function removeFilter(filterId) {
+            try {
+                const response = await fetch(`/api/dashboards/${dashboardId}/filters/${filterId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    await loadFilters();
+                    await loadWidgetsWithFilters(); // Reload widgets after filter removal
+                }
+            } catch (error) {
+                console.error('Error removing filter:', error);
+            }
+        }
+
+        // Clear all filters
+        async function clearAllFilters() {
+            for (const filterId of Object.keys(activeFilters)) {
+                await removeFilter(filterId);
+            }
+        }
+
+        // Render widgets
+        function renderWidgets() {
+            const grid = document.getElementById('widgetsGrid');
+            grid.innerHTML = '';
+
+            if (!dashboard.widgets || dashboard.widgets.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <h3>No widgets yet</h3>
+                        <p>Add charts and visualizations to this dashboard</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Check if filters are active and if widgets are filtered
+            const hasActiveFilters = Object.keys(activeFilters).length > 0;
+            const hasUnfilteredCharts = dashboard.widgets.some(w => w.type === 'chart' && w.filtered === false);
+            console.log('Rendering widgets. Active filters:', Object.keys(activeFilters).length);
+
+            // Show notice if filters are active but some charts don't have templates
+            if (hasActiveFilters && hasUnfilteredCharts) {
+                const notice = document.createElement('div');
+                notice.style.cssText = 'background: linear-gradient(135deg, rgba(168, 38, 179, 0.2), rgba(51, 204, 255, 0.2)); border: 1px solid var(--primary-blue); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: var(--text-primary);';
+                notice.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="font-size: 1.5rem;">ℹ️</div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">Partial Filtering</div>
+                            <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                                Some charts below don't have query templates and cannot be filtered dynamically.
+                                Charts without templates will show their original data. Filtered charts are marked with a ✓.
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(notice);
+            } else if (hasActiveFilters) {
+                const notice = document.createElement('div');
+                notice.style.cssText = 'background: linear-gradient(135deg, rgba(46, 125, 50, 0.2), rgba(67, 160, 71, 0.2)); border: 1px solid #4CAF50; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: var(--text-primary);';
+                notice.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="font-size: 1.5rem;">✓</div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">Filters Active</div>
+                            <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                                Charts below are showing filtered data based on your active filters.
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(notice);
+            }
+
+            dashboard.widgets.forEach((widget, index) => {
+                const card = document.createElement('div');
+                card.className = 'widget-card';
+                card.id = `widget-${index}`;
+
+                // Show filtered badge on filtered charts
+                let filteredBadge = '';
+                if (widget.filtered === true) {
+                    filteredBadge = '<span style="background: #4CAF50; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">✓ Filtered</span>';
+                } else if (widget.filtered === false && hasActiveFilters) {
+                    filteredBadge = '<span style="background: #FFA726; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Original Data</span>';
+                }
+
+                card.innerHTML = `
+                    <div class="widget-header">
+                        <div class="widget-title">${widget.title || 'Chart'}${filteredBadge}</div>
+                        <button class="widget-menu-btn">⋮</button>
+                    </div>
+                    <div class="widget-content">
+                        ${widget.type === 'chart' ? `<iframe src="${widget.chart_url}" class="widget-chart-iframe" frameborder="0"></iframe>` : ''}
+                        ${widget.type === 'text' ? `<div class="widget-text-content">${widget.content || ''}</div>` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Build filter parameters for chart URLs
+        function buildFilterParams() {
+            const params = new URLSearchParams();
+
+            Object.values(activeFilters).forEach(filter => {
+                if (filter.type === 'date_range') {
+                    if (filter.start) params.append('start_date', filter.start);
+                    if (filter.end) params.append('end_date', filter.end);
+                } else if (filter.type === 'service') {
+                    params.append('service', filter.value);
+                } else if (filter.type === 'region') {
+                    params.append('region', filter.value);
+                } else if (filter.type === 'account') {
+                    params.append('account', filter.value);
+                }
+            });
+
+            return params.toString();
+        }
+
+        // Modal functions
+        function showFilterModal() {
+            console.log('Opening filter modal');
+            const modal = document.getElementById('filterModal');
+            if (modal) {
+                modal.style.display = 'block';
+                console.log('Modal opened');
+            } else {
+                console.error('Modal element not found');
+            }
+        }
+
+        function closeFilterModal() {
+            console.log('Closing filter modal');
+            const modal = document.getElementById('filterModal');
+            if (modal) {
+                modal.style.display = 'none';
+                // Reset form
+                document.getElementById('filterType').value = '';
+                document.getElementById('filterFormContent').innerHTML = '';
+            }
+        }
+
+        async function updateFilterForm() {
+            const filterType = document.getElementById('filterType').value;
+            const container = document.getElementById('filterFormContent');
+
+            if (filterType === 'date_range') {
+                container.innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-input" id="filterStart">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-input" id="filterEnd">
+                    </div>
+                `;
+            } else if (filterType === 'service' || filterType === 'region' || filterType === 'account') {
+                // Show loading state
+                container.innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">${filterType.charAt(0).toUpperCase() + filterType.slice(1)}</label>
+                        <div style="padding: 1rem; color: var(--text-secondary);">Loading ${filterType} values...</div>
+                    </div>
+                `;
+
+                // Fetch available values
+                try {
+                    const response = await fetch(`/api/filter-values/${filterType}`);
+                    const data = await response.json();
+
+                    if (data.success && data.values && data.values.length > 0) {
+                        container.innerHTML = `
+                            <div class="form-group">
+                                <label class="form-label">${filterType.charAt(0).toUpperCase() + filterType.slice(1)}</label>
+                                <select class="form-input" id="filterValueSelect" onchange="handleFilterValueChange()">
+                                    <option value="">-- Select ${filterType} --</option>
+                                    ${data.values.map(v => `<option value="${v}">${v}</option>`).join('')}
+                                    <option value="__custom__">✏️ Enter custom value...</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="customValueGroup" style="display: none;">
+                                <label class="form-label">Custom Value</label>
+                                <input type="text" class="form-input" id="filterValueCustom" placeholder="Enter custom ${filterType}...">
+                            </div>
+                        `;
+                    } else {
+                        // Fallback to text input if no values found
+                        container.innerHTML = `
+                            <div class="form-group">
+                                <label class="form-label">${filterType.charAt(0).toUpperCase() + filterType.slice(1)}</label>
+                                <input type="text" class="form-input" id="filterValue" placeholder="Enter ${filterType}...">
+                                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                    No values found. Enter manually.
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Error loading filter values:', error);
+                    // Fallback to text input
+                    container.innerHTML = `
+                        <div class="form-group">
+                            <label class="form-label">${filterType.charAt(0).toUpperCase() + filterType.slice(1)}</label>
+                            <input type="text" class="form-input" id="filterValue" placeholder="Enter ${filterType}...">
+                        </div>
+                    `;
+                }
+            } else if (filterType === 'tag') {
+                container.innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">Tag Key</label>
+                        <input type="text" class="form-input" id="filterTagKey" placeholder="e.g., Environment">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tag Value</label>
+                        <input type="text" class="form-input" id="filterTagValue" placeholder="e.g., Production">
+                    </div>
+                `;
+            }
+        }
+
+        function handleFilterValueChange() {
+            const select = document.getElementById('filterValueSelect');
+            const customGroup = document.getElementById('customValueGroup');
+
+            if (select.value === '__custom__') {
+                customGroup.style.display = 'block';
+                document.getElementById('filterValueCustom').focus();
+            } else {
+                customGroup.style.display = 'none';
+            }
+        }
+
+        async function addFilter() {
+            const filterType = document.getElementById('filterType').value;
+            console.log('Adding filter, type:', filterType);
+
+            if (!filterType) {
+                alert('Please select a filter type');
+                return;
+            }
+
+            const filterData = { type: filterType, name: filterType };
+
+            if (filterType === 'date_range') {
+                filterData.start = document.getElementById('filterStart').value;
+                filterData.end = document.getElementById('filterEnd').value;
+
+                if (!filterData.start || !filterData.end) {
+                    alert('Please enter both start and end dates');
+                    return;
+                }
+
+                filterData.name = `${filterData.start} to ${filterData.end}`;
+            } else if (filterType === 'service' || filterType === 'region' || filterType === 'account') {
+                // Check if using dropdown or text input
+                const selectElem = document.getElementById('filterValueSelect');
+                const textElem = document.getElementById('filterValue');
+                const customElem = document.getElementById('filterValueCustom');
+
+                if (selectElem) {
+                    // Using dropdown
+                    const selectedValue = selectElem.value;
+                    if (selectedValue === '__custom__') {
+                        // User chose custom value
+                        filterData.value = customElem ? customElem.value : '';
+                    } else {
+                        filterData.value = selectedValue;
+                    }
+                } else if (textElem) {
+                    // Using text input (fallback)
+                    filterData.value = textElem.value;
+                }
+
+                if (!filterData.value) {
+                    alert(`Please ${selectElem ? 'select or enter' : 'enter'} a ${filterType} value`);
+                    return;
+                }
+
+                filterData.name = `${filterType}: ${filterData.value}`;
+            } else if (filterType === 'tag') {
+                filterData.key = document.getElementById('filterTagKey').value;
+                filterData.value = document.getElementById('filterTagValue').value;
+
+                if (!filterData.key || !filterData.value) {
+                    alert('Please enter both tag key and value');
+                    return;
+                }
+
+                filterData.name = `${filterData.key}: ${filterData.value}`;
+            }
+
+            try {
+                console.log('Sending filter data:', filterData);
+                const response = await fetch(`/api/dashboards/${dashboardId}/filters`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(filterData)
+                });
+
+                console.log('Add filter response status:', response.status);
+                const data = await response.json();
+                console.log('Add filter response data:', data);
+
+                if (response.ok) {
+                    closeFilterModal();
+                    await loadFilters();
+                    renderWidgets();
+                    console.log('Filter added successfully');
+                } else {
+                    alert('Error adding filter: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error adding filter:', error);
+                alert('Error adding filter: ' + error.message);
+            }
+        }
+
+        // Initialize
+        loadDashboard();
+    </script>
+</body>
+</html>

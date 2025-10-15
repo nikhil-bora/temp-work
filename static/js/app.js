@@ -513,14 +513,26 @@ async function loadConversation(conversationId) {
 // Update conversation ID display in sidebar
 function updateConversationIdDisplay() {
     const display = document.getElementById('conversationIdDisplay');
+    const dashboardBtn = document.getElementById('createDashboardBtn');
+
     if (display) {
         if (currentConversationId) {
             // Show shortened ID for better UX
             const shortId = currentConversationId.replace('conv_', '');
             display.textContent = shortId;
             display.title = currentConversationId;  // Full ID on hover
+
+            // Enable dashboard button
+            if (dashboardBtn) {
+                dashboardBtn.disabled = false;
+            }
         } else {
             display.textContent = 'Not started';
+
+            // Disable dashboard button
+            if (dashboardBtn) {
+                dashboardBtn.disabled = true;
+            }
         }
     }
 }

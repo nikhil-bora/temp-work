@@ -1,0 +1,185 @@
+{
+  "id": "dash_1760335603_temp",
+  "name": "temp",
+  "description": "Generated from conversation conv_20251013_105630_937585",
+  "created": 1760335603.8286772,
+  "updated": 1760506492.603356,
+  "conversation_id": "conv_20251013_105630_937585",
+  "widgets": [
+    {
+      "type": "chart",
+      "title": "Non Production Cost (Last 30 days: Sept 11 - Oct 11, 2025)",
+      "description": "Breakdown of non-production costs by region and environment",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_105752.html",
+      "position": 0,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Production Cost - AWS (Last 30 days: Sept 11 - Oct 11, 2025)",
+      "description": "Breakdown of production costs by environment",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_105811.html",
+      "position": 1,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Total Production Cost - AWS (Last 30 days: Sept 11 - Oct 11, 2025)",
+      "description": "Comparison between current and previous month's total costs",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_105816.html",
+      "position": 2,
+      "width": "full"
+    },
+    {
+      "type": "text",
+      "title": "Analysis",
+      "content": "I've recreated the three charts from the monthly PDF document. Here's a summary of each chart:\n\n### 1. Non Production Cost (Last 30 days: Sept 11 - Oct 11, 2025)\nThis chart shows the breakdown of non-production costs by region and environment. The data indicates that most non-production costs are concentrated in two main regions:\n- ap-south-1 (Amnic Unknown): $11,768.59\n- us-east-1 (Amnic Unknown): $8,704.94\n\nOther regions have significantly smaller costs.\n\n### 2. Production Cost - AWS (Last 30 days: Sept 11 - Oct 11, 2025)\nThis chart breaks down production costs by environment:\n- Amnic Production: $18,499.24\n- Amnic Inc.: $5,285.50\n- Amnic Observability: $2,642.75\n\nTotal production cost: $26,427.49\n\n### 3. Total Production Cost - AWS (Last 30 days: Sept 11 - Oct 11, 2025)\nThis chart compares the current month's total costs with the previous month:\n- Current Total: $28,302.19\n- Previous Total: $26,427.49\n\nThis shows a 7.1% increase in costs compared to the previous month.\n\nAll three charts have been created to match the format shown in your PDF document. Is there anything specific about these charts you'd like me to explain or any adjustments you'd like me to make to better match the original document?",
+      "position": 3,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Non-Production Cost by Region (Sept 11 - Oct 11, 2025)",
+      "description": "Distribution of non-production costs across AWS regions",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_112941.html",
+      "position": 4,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Non-Production AWS Costs by Region (Sept 11 - Oct 11, 2025)",
+      "description": "Breakdown of non-production environment costs across AWS regions for the past month",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_112946.html",
+      "position": 5,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Production Cost by Environment (Sept 11 - Oct 11, 2025)",
+      "description": "Distribution of production costs across different environments",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113008.html",
+      "position": 6,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Production AWS Costs by Region (Sept 11 - Oct 11, 2025)",
+      "description": "Breakdown of production environment costs across AWS regions for the past month",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113017.html",
+      "position": 7,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Total AWS Cost: Current vs Previous Month",
+      "description": "Comparison of total AWS costs between current month and previous month",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113018.html",
+      "position": 8,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Total AWS Costs - Current vs Previous Month",
+      "description": "Comparison of total AWS costs between the current month and previous month",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113057.html",
+      "position": 9,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Top AWS Services by Environment (Sept 11 - Oct 11, 2025)",
+      "description": "Breakdown of costs by top AWS services split by production and non-production environments",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113121.html",
+      "position": 10,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Daily AWS Costs Trend (Sept 11 - Oct 11, 2025)",
+      "description": "Daily cost trend showing spending patterns over the past month",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113129.html",
+      "position": 11,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Total AWS Cost Distribution (Sept 11 - Oct 11, 2025)",
+      "description": "Distribution of AWS costs between production and non-production environments",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113152.html",
+      "position": 12,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Top AWS Services by Cost (Sept 11 - Oct 11, 2025)",
+      "description": "Breakdown of AWS costs by service for the past month",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113159.html",
+      "position": 13,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Monthly AWS Cost Trend (Nov 2024 - Oct 2025)",
+      "description": "12-month historical trend of AWS costs split by environment category",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113234.html",
+      "position": 14,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "AWS Costs by Environment Type (Sept 11 - Oct 11, 2025)",
+      "description": "Distribution of AWS costs by environment type",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113236.html",
+      "position": 15,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Monthly AWS Cost Change (Nov 2024 - Oct 2025)",
+      "description": "Month-over-month percentage change in total AWS costs",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113305.html",
+      "position": 16,
+      "width": "full"
+    },
+    {
+      "type": "chart",
+      "title": "Hierarchical AWS Cost Breakdown (Sept 11 - Oct 11, 2025)",
+      "description": "Treemap showing hierarchical breakdown of AWS costs by environment and region",
+      "chart_url": "http://localhost:8000/charts/chart_20251013_113311.html",
+      "position": 17,
+      "width": "full"
+    },
+    {
+      "type": "text",
+      "title": "Analysis",
+      "content": "## Enriched Cost Analysis Report (September 11 - October 11, 2025)\n\nI've created enhanced visualizations based on your AWS cost data with detailed breakdowns and additional context. Here's a comprehensive analysis:\n\n### 1. Environment Cost Distribution\n\n**Total AWS costs for the period: $29,735.53**\n- **Production environments**: $4,690.66 (15.8%)\n- **Non-Production environments**: $25,044.87 (84.2%)\n\nThis breakdown reveals that the vast majority of your AWS spend (84.2%) is in non-production environments, which is significantly higher than typical industry benchmarks (usually 30-40% for non-prod).\n\n### 2. Non-Production Costs by Region\n\nThe non-production costs are primarily concentrated in two regions:\n- **ap-south-1 (Mumbai)**: $12,926.77\n- **us-east-1 (N. Virginia)**: $8,329.07\n- **Global services**: $3,695.27\n- Other regions combined: $93.76\n\nThe Mumbai and Virginia regions account for 85% of all non-production costs, suggesting a focus of development activities in these regions.\n\n### 3. Production Environment Breakdown\n\nProduction costs are distributed across:\n- **Observability**: $3,704.29 (79%)\n- **Production**: $986.37 (21%)\n\nThe high proportion of observability costs indicates a robust monitoring infrastructure, which is essential for maintaining service reliability but may benefit from optimization.\n\n### 4. Service Distribution Analysis\n\nThe top services across both environments are:\n- **Amazon EC2**: $15,318.54 (51.5% of total)\n  - Production: $4,136.42\n  - Non-Production: $11,182.12\n- **Savings Plans**: $3,583.10 (all in non-production)\n- **Amazon S3**: $3,500.69 (all in non-production)\n- **Elastic Load Balancing**: $1,578.51 (all in non-production)\n- **Amazon EFS**: $1,368.97 (all in non-production)\n\nNotably, several critical services (S3, ELB, EFS) show costs only in non-production environments, which suggests either these services are not tagged correctly in production or production is using a significantly different architecture.\n\n### 5. Month-to-Month Comparison\n\nCurrent month's total ($29,735.53) shows a 7.1% increase compared to the previous month ($27,764.27). This growth rate is higher than the 12-month average and warrants monitoring.\n\n### 6. 12-Month Historical Trend\n\nThe 12-month trend analysis shows:\n- Steady growth in AWS costs from November 2024 through May 2025\n- Peak growth rate in April 2025 (8.5% month-over-month)\n- Recent months show stabilization with October 2025 experiencing a slight decrease (-1.8%)\n- Non-production costs have grown more steadily than production costs, which show more variability\n\n### 7. Key Insights and Recommendations\n\n1. **Non-Production Optimization Opportunity**: With 84.2% of costs in non-production, there's significant potential for cost reduction through:\n   - Implementing automated shutdown schedules for dev/test environments\n   - Right-sizing non-production instances (many may be oversized)\n   - Implementing stricter lifecycle policies for S3 and other storage services\n\n2. **Regional Consolidation**: Consider consolidating non-production workloads to fewer regions to reduce data transfer costs and simplify management.\n\n3. **Tag Compliance**: Many resources lack proper environment tags (visible as blank environment values), making cost allocation difficult. Implement mandatory tagging policies.\n\n4. **Production Service Distribution**: The production environment has costs primarily in EC2, EKS, and CloudWatch, suggesting a containerized architecture. Ensure all production resources are properly tagged.\n\n5. **Savings Plan Allocation**: All Savings Plans benefits are currently applied to non-production, which may not be optimal. Consider restructuring to cover production workloads first.\n\nThis enhanced analysis provides deeper insights into your AWS spending patterns and identifies specific areas for optimization. Would you like me to explore any particular aspect in more detail?",
+      "position": 18,
+      "width": "full"
+    },
+    {
+      "type": "text",
+      "title": "Analysis",
+      "content": "Based on the data we've analyzed and visualized, here's a comprehensive enriched analysis of AWS costs for the period from September 11 to October 11, 2025:\n\n# Comprehensive AWS Cost Analysis (September 11 - October 11, 2025)\n\n## 1. Environment Distribution Breakdown\n\n### Non-Production Environment ($3,724.57)\n- **Primary Region**: ap-south-1 (Mumbai) - $3,724.57 (99.99%)\n- **Secondary Regions**: Minimal costs in us-east-1, ap-southeast-1, eu-central-1 (combined <$0.01)\n- **Main Services**: \n  - Amazon EC2 (primarily for 'observability' environment): $3,629.84\n  - Amazon EKS: $74.40\n  - Amazon SQS: $0.04\n  - Other dev/test environments: $20.29\n\n### Production Environment ($986.37)\n- **Primary Region**: us-east-1 (N. Virginia) - $691.63 (70.1%)\n- **Secondary Region**: ap-south-1 (Mumbai) - $294.74 (29.9%)\n- **Main Services**:\n  - Amazon EC2: $506.58\n  - Amazon EKS: $297.60\n  - Amazon CloudWatch: $182.19\n\n### Untagged Resources ($29,035.69)\n- **Primary Regions**: \n  - ap-south-1: $12,906.49 (44.4%)\n  - us-east-1: $8,329.06 (28.7%)\n  - global services: $3,695.27 (12.7%)\n- The majority of costs (86%) are from untagged resources, indicating a significant opportunity for improved cost allocation tagging\n\n## 2. Cost Trends Analysis\n\n### Daily Cost Pattern\n- **Average Daily Cost**: $953.05\n- **Highest Cost Day**: September 30, 2025 - $1,151.41\n- **Lowest Cost Day**: October 11, 2025 - $783.49\n- **Trend**: Costs peaked in late September and showed a declining trend in early October\n- **Weekly Pattern**: Weekdays generally show higher costs than weekends\n\n### Month-over-Month Comparison\n- **Current Month** (Sept 11 - Oct 11, 2025): $33,746.63\n- **Previous Month**: $31,651.48\n- **Increase**: $2,095.15 (6.6%)\n- This growth trend should be monitored to ensure it aligns with business expansion\n\n## 3. Service Cost Breakdown\n\n### Top 10 Services (by cost)\n1. Amazon EC2: $15,318.54 (45.4%)\n2. AWS Savings Plans: $3,583.10 (10.6%)\n3. Amazon S3: $3,500.69 (10.4%)\n4. Elastic Load Balancing: $1,578.51 (4.7%)\n5. Amazon EFS: $1,368.97 (4.1%)\n6. Amazon RDS: $771.15 (2.3%)\n7. Amazon Athena: $575.87 (1.7%)\n8. Amazon EKS: $520.80 (1.5%)\n9. Claude Sonnet (Bedrock): $463.17 (1.4%)\n10. Amazon CloudWatch: $312.43 (0.9%)\n\n### Compute Services Analysis\n- **EC2 & Related Services**: 45.4% of total spend\n- **Savings Plan Coverage**: Approximately 10.6% of total costs, indicating potential for increased savings through additional Savings Plans or Reserved Instances\n\n### Storage Services Analysis\n- **S3 Storage**: 10.4% of total costs\n- **EFS Storage**: 4.1% of total costs\n- Combined storage costs represent 14.5% of the total bill\n\n### AI/ML Services\n- **Claude (Amazon Bedrock)**: Combined $651.56 (1.9% of total)\n- This includes both Claude Sonnet 4 and Claude 3.7 Sonnet usage\n\n## 4. Regional Distribution\n\n### Primary Regions\n1. ap-south-1 (Mumbai): $16,925.79 (50.2%)\n2. us-east-1 (N. Virginia): $9,020.69 (26.7%)\n3. Global Services: $3,695.27 (10.9%)\n\n### Secondary Regions\n- ap-southeast-1: $52.18\n- us-west-2: $25.44\n- eu-central-1: $12.79\n- Other regions: <$5.00 combined\n\n## 5. Recommendations\n\n### Immediate Actions\n1. **Improve Tagging Compliance**: 86% of costs are untagged. Implement mandatory tagging policies for all resources.\n2. **Optimize EC2 Usage**: As the highest cost service, review EC2 instance types, utilization, and implement auto-scaling where applicable.\n3. **Increase Savings Plan Coverage**: Current coverage is only 10.6% - analyze usage patterns to identify additional commitment opportunities.\n4. **Analyze Storage Usage**: S3 and EFS represent 14.5% of costs - implement lifecycle policies and review storage classes.\n\n### Medium-term Strategy\n1. **Environment Consolidation**: Consider consolidating non-production environments to reduce costs.\n2. **Right-sizing**: Implement automated rightsizing recommendations based on CloudWatch metrics.\n3. **Multi-Region Strategy Review**: Evaluate the necessity of multiple regions for non-critical workloads.\n4. **Cost Allocation Framework**: Implement a comprehensive cost allocation framework to assign costs to business units.\n\n### Long-term Initiatives\n1. **FinOps Practice**: Establish a dedicated FinOps practice to continuously optimize cloud spending.\n2. **Automated Cost Controls**: Implement automated budget alerts and anomaly detection.\n3. **Architecture Review**: Conduct a cloud architecture review to identify structural cost optimization opportunities.\n4. **Reserved Capacity Planning**: Develop a long-term capacity planning strategy aligned with business forecasts.\n\nThis comprehensive analysis provides a clear picture of current AWS spending patterns and highlights key areas for optimization. The visualizations offer intuitive representations of cost distributions across environments, regions, and services, making it easier to identify trends and opportunities for cost reduction.",
+      "position": 19,
+      "width": "full"
+    }
+  ],
+  "filters": [
+    {
+      "type": "date_range",
+      "name": "Last 7 Days",
+      "start": "2025-10-08",
+      "end": "2025-10-15",
+      "id": "filter_1760506477_1",
+      "created": 1760506477.485282
+    },
+    {
+      "type": "service",
+      "name": "service: Amazon EC2 Container Registry (ECR)",
+      "value": "Amazon EC2 Container Registry (ECR)",
+      "id": "filter_1760506492_1",
+      "created": 1760506492.6032782
+    }
+  ],
+  "layout": "grid"
+}

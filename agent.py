@@ -174,6 +174,8 @@ def execute_athena_query(query: str) -> Dict[str, Any]:
 
 def handle_tool_call(tool_name: str, tool_input: Dict[str, Any]) -> Any:
     """Handle tool calls from Claude"""
+    global config
+
     logger.info("=" * 80)
     logger.info(f"TOOL CALL: {tool_name}")
     logger.debug(f"Tool input: {json.dumps(tool_input, indent=2, default=str)}")
@@ -409,17 +411,26 @@ def handle_tool_call(tool_name: str, tool_input: Dict[str, Any]) -> Any:
         if end_time.tzinfo is None:
             end_time = end_time.replace(tzinfo=timezone.utc)
 
-        duration_days = (end_time - start_time).total_seconds() / (24 * 3600)
+        duration_seconds = (end_time - start_time).total_seconds()
+        duration_days = duration_seconds / (24 * 3600)
 
-        # Adjust period based on duration (CloudWatch requirements)
-        if duration_days > 15:
-            period = 3600  # 1 hour (required for > 15 days)
-        elif duration_days > 1:
-            period = 300   # 5 minutes (basic monitoring)
+        # Calculate required period to stay under 1440 datapoints limit
+        # CloudWatch limit: 1440 datapoints max
+        # Formula: period = duration_seconds / 1440
+        min_period = max(60, int(duration_seconds / 1440))  # Minimum 60 seconds
+
+        # Round up to valid CloudWatch period (60, 300, 3600, or multiples of 3600)
+        if min_period <= 60:
+            period = 60
+        elif min_period <= 300:
+            period = 300
+        elif min_period <= 3600:
+            period = 3600
         else:
-            period = 60    # 1 minute (detailed monitoring if enabled)
+            # For longer periods, round to nearest hour
+            period = ((min_period + 3599) // 3600) * 3600
 
-        print(f"{Fore.LIGHTBLACK_EX}Duration: {duration_days:.1f} days, Period: {period}s")
+        print(f"{Fore.LIGHTBLACK_EX}Duration: {duration_days:.1f} days, Period: {period}s (auto-calculated to stay under 1440 datapoints)")
 
         # Check instance state first
         try:
@@ -441,81 +452,92 @@ def handle_tool_call(tool_name: str, tool_input: Dict[str, Any]) -> Any:
         metrics = ['CPUUtilization', 'NetworkIn', 'NetworkOut']
         results = {}
 
-        for instance_id in instance_ids:
-            results[instance_id] = {}
+        # Process instances in batches to avoid overwhelming CloudWatch API
+        BATCH_SIZE = 5
+        total_batches = (len(instance_ids) + BATCH_SIZE - 1) // BATCH_SIZE
 
-            # Add instance state info
-            if instance_id in instance_states:
-                results[instance_id]['instance_info'] = instance_states[instance_id]
+        for batch_num in range(total_batches):
+            batch_start = batch_num * BATCH_SIZE
+            batch_end = min((batch_num + 1) * BATCH_SIZE, len(instance_ids))
+            batch_instances = instance_ids[batch_start:batch_end]
 
-            # If instance is stopped, skip metrics query
-            if instance_id in instance_states and instance_states[instance_id]['state'] == 'stopped':
-                print(f"{Fore.YELLOW}  ⚠️  {instance_id} is stopped, skipping metrics")
-                for metric_name in metrics:
-                    results[instance_id][metric_name] = {
-                        'datapoints': 0,
-                        'average': None,
-                        'maximum': None,
-                        'minimum': None,
-                        'note': 'Instance is stopped - no metrics available'
-                    }
-                continue
+            print(f"{Fore.LIGHTBLACK_EX}Processing batch {batch_num + 1}/{total_batches} ({len(batch_instances)} instances)...")
 
-            for metric_name in metrics:
-                try:
-                    response = cloudwatch.get_metric_statistics(
-                        Namespace='AWS/EC2',
-                        MetricName=metric_name,
-                        Dimensions=[{'Name': 'InstanceId', 'Value': instance_id}],
-                        StartTime=start_time,
-                        EndTime=end_time,
-                        Period=period,
-                        Statistics=['Average', 'Maximum', 'Minimum']
-                    )
+            for instance_id in batch_instances:
+                results[instance_id] = {}
 
-                    datapoints = response['Datapoints']
-                    print(f"{Fore.LIGHTBLACK_EX}  {metric_name}: {len(datapoints)} datapoints")
+                # Add instance state info
+                if instance_id in instance_states:
+                    results[instance_id]['instance_info'] = instance_states[instance_id]
 
-                    if len(datapoints) == 0:
-                        # Try to diagnose why no data
-                        diagnostic_msg = 'No data available'
-
-                        # Check if detailed monitoring is needed
-                        if period == 60 and instance_id in instance_states:
-                            if instance_states[instance_id]['monitoring'] == 'disabled':
-                                diagnostic_msg = 'Detailed monitoring (1-min) disabled. Enable detailed monitoring or use longer time range.'
-
-                        # Check if time range is too recent
-                        time_since_end = (datetime.now(timezone.utc) - end_time).total_seconds() / 60
-                        if time_since_end < 5:
-                            diagnostic_msg += ' Metrics may have 5-15 min delay.'
-
-                        print(f"{Fore.YELLOW}  ⚠️  No {metric_name} data for {instance_id}: {diagnostic_msg}")
+                # If instance is stopped, skip metrics query
+                if instance_id in instance_states and instance_states[instance_id]['state'] == 'stopped':
+                    print(f"{Fore.YELLOW}  ⚠️  {instance_id} is stopped, skipping metrics")
+                    for metric_name in metrics:
                         results[instance_id][metric_name] = {
                             'datapoints': 0,
                             'average': None,
                             'maximum': None,
                             'minimum': None,
-                            'note': diagnostic_msg
+                            'note': 'Instance is stopped - no metrics available'
                         }
-                    else:
-                        average = sum(dp['Average'] for dp in datapoints) / len(datapoints)
-                        maximum = max(dp['Maximum'] for dp in datapoints)
-                        minimum = min(dp['Minimum'] for dp in datapoints)
+                    continue
 
-                        results[instance_id][metric_name] = {
-                            'datapoints': len(datapoints),
-                            'average': average,
-                            'maximum': maximum,
-                            'minimum': minimum
-                        }
+                for metric_name in metrics:
+                    try:
+                        response = cloudwatch.get_metric_statistics(
+                            Namespace='AWS/EC2',
+                            MetricName=metric_name,
+                            Dimensions=[{'Name': 'InstanceId', 'Value': instance_id}],
+                            StartTime=start_time,
+                            EndTime=end_time,
+                            Period=period,
+                            Statistics=['Average', 'Maximum', 'Minimum']
+                        )
 
-                        unit = '%' if metric_name == 'CPUUtilization' else 'bytes'
-                        print(f"{Fore.LIGHTBLACK_EX}  ✓ {instance_id} {metric_name}: avg {average:.2f}{unit}")
+                        datapoints = response['Datapoints']
+                        print(f"{Fore.LIGHTBLACK_EX}  {metric_name}: {len(datapoints)} datapoints")
 
-                except Exception as error:
-                    print(f"{Fore.RED}  ✗ Failed to get {metric_name} for {instance_id}: {str(error)}")
-                    results[instance_id][metric_name] = {'error': str(error)}
+                        if len(datapoints) == 0:
+                            # Try to diagnose why no data
+                            diagnostic_msg = 'No data available'
+
+                            # Check if detailed monitoring is needed
+                            if period == 60 and instance_id in instance_states:
+                                if instance_states[instance_id]['monitoring'] == 'disabled':
+                                    diagnostic_msg = 'Detailed monitoring (1-min) disabled. Enable detailed monitoring or use longer time range.'
+
+                            # Check if time range is too recent
+                            time_since_end = (datetime.now(timezone.utc) - end_time).total_seconds() / 60
+                            if time_since_end < 5:
+                                diagnostic_msg += ' Metrics may have 5-15 min delay.'
+
+                            print(f"{Fore.YELLOW}  ⚠️  No {metric_name} data for {instance_id}: {diagnostic_msg}")
+                            results[instance_id][metric_name] = {
+                                'datapoints': 0,
+                                'average': None,
+                                'maximum': None,
+                                'minimum': None,
+                                'note': diagnostic_msg
+                            }
+                        else:
+                            average = sum(dp['Average'] for dp in datapoints) / len(datapoints)
+                            maximum = max(dp['Maximum'] for dp in datapoints)
+                            minimum = min(dp['Minimum'] for dp in datapoints)
+
+                            results[instance_id][metric_name] = {
+                                'datapoints': len(datapoints),
+                                'average': average,
+                                'maximum': maximum,
+                                'minimum': minimum
+                            }
+
+                            unit = '%' if metric_name == 'CPUUtilization' else 'bytes'
+                            print(f"{Fore.LIGHTBLACK_EX}  ✓ {instance_id} {metric_name}: avg {average:.2f}{unit}")
+
+                    except Exception as error:
+                        print(f"{Fore.RED}  ✗ Failed to get {metric_name} for {instance_id}: {str(error)}")
+                        results[instance_id][metric_name] = {'error': str(error)}
 
         print(f"{Fore.GREEN}✓ Fetched utilization for {len(instance_ids)} instances")
         return results
@@ -647,11 +669,33 @@ def handle_tool_call(tool_name: str, tool_input: Dict[str, Any]) -> Any:
         dimensions = tool_input.get('dimensions', [])
         start_time = datetime.fromisoformat(tool_input['start_time'].replace('Z', '+00:00'))
         end_time = datetime.fromisoformat(tool_input['end_time'].replace('Z', '+00:00'))
-        period = tool_input.get('period', 3600)
+
+        # Auto-calculate period to avoid exceeding 1440 datapoints
+        duration_seconds = (end_time - start_time).total_seconds()
+        min_period = max(60, int(duration_seconds / 1440))
+
+        # Round up to valid CloudWatch period
+        if min_period <= 60:
+            period = 60
+        elif min_period <= 300:
+            period = 300
+        elif min_period <= 3600:
+            period = 3600
+        else:
+            period = ((min_period + 3599) // 3600) * 3600
+
+        # Allow override but warn if it might exceed limits
+        if 'period' in tool_input:
+            requested_period = tool_input['period']
+            expected_datapoints = duration_seconds / requested_period
+            if expected_datapoints > 1440:
+                print(f"{Fore.YELLOW}⚠️  Requested period {requested_period}s would exceed 1440 datapoints, using {period}s instead")
+            else:
+                period = requested_period
 
         logger.debug(f"Namespace: {namespace}, Metric: {metric_name}")
         logger.debug(f"Dimensions: {dimensions}")
-        logger.debug(f"Time range: {start_time} to {end_time}, Period: {period}s")
+        logger.debug(f"Time range: {start_time} to {end_time}, Period: {period}s (auto-calculated)")
 
         response = cloudwatch.get_metric_statistics(
             Namespace=namespace,
@@ -744,55 +788,73 @@ def handle_tool_call(tool_name: str, tool_input: Dict[str, Any]) -> Any:
         config = service_configs[service_type]
         logger.info(f"Using config for {service_type}: {config['namespace']}")
 
-        # Determine period based on time range
-        duration_days = (end_time - start_time).total_seconds() / (24 * 3600)
-        if duration_days > 15:
-            period = 3600  # 1 hour
-        elif duration_days > 1:
-            period = 300   # 5 minutes
-        else:
-            period = 60    # 1 minute
+        # Auto-calculate period to avoid exceeding 1440 datapoints
+        duration_seconds = (end_time - start_time).total_seconds()
+        min_period = max(60, int(duration_seconds / 1440))
 
-        logger.debug(f"Duration: {duration_days:.1f} days, Period: {period}s")
+        # Round up to valid CloudWatch period
+        if min_period <= 60:
+            period = 60
+        elif min_period <= 300:
+            period = 300
+        elif min_period <= 3600:
+            period = 3600
+        else:
+            period = ((min_period + 3599) // 3600) * 3600
+
+        logger.debug(f"Duration: {duration_seconds / 86400:.1f} days, Period: {period}s (auto-calculated)")
+        print(f"{Fore.LIGHTBLACK_EX}Using period: {period}s to stay under 1440 datapoints limit")
 
         results = {}
-        for resource_id in resource_ids:
-            logger.debug(f"Fetching metrics for {resource_id}")
-            results[resource_id] = {}
 
-            for metric_name in config['metrics']:
-                try:
-                    response = cloudwatch.get_metric_statistics(
-                        Namespace=config['namespace'],
-                        MetricName=metric_name,
-                        Dimensions=[{'Name': config['dimension_name'], 'Value': resource_id}],
-                        StartTime=start_time,
-                        EndTime=end_time,
-                        Period=period,
-                        Statistics=['Average', 'Maximum', 'Minimum', 'Sum']
-                    )
+        # Process resources in batches
+        BATCH_SIZE = 5
+        total_batches = (len(resource_ids) + BATCH_SIZE - 1) // BATCH_SIZE
 
-                    datapoints = response['Datapoints']
+        for batch_num in range(total_batches):
+            batch_start = batch_num * BATCH_SIZE
+            batch_end = min((batch_num + 1) * BATCH_SIZE, len(resource_ids))
+            batch_resources = resource_ids[batch_start:batch_end]
 
-                    if len(datapoints) > 0:
-                        results[resource_id][metric_name] = {
-                            'datapoints': len(datapoints),
-                            'average': sum(dp.get('Average', 0) for dp in datapoints) / len(datapoints),
-                            'maximum': max((dp.get('Maximum', 0) for dp in datapoints), default=0),
-                            'minimum': min((dp.get('Minimum', 0) for dp in datapoints), default=0),
-                            'sum': sum(dp.get('Sum', 0) for dp in datapoints)
-                        }
-                        logger.debug(f"  {metric_name}: {len(datapoints)} datapoints")
-                    else:
-                        results[resource_id][metric_name] = {
-                            'datapoints': 0,
-                            'note': 'No data available'
-                        }
-                        logger.warning(f"  {metric_name}: No data")
+            print(f"{Fore.LIGHTBLACK_EX}Processing batch {batch_num + 1}/{total_batches} ({len(batch_resources)} resources)...")
 
-                except Exception as error:
-                    logger.error(f"Error fetching {metric_name} for {resource_id}: {error}")
-                    results[resource_id][metric_name] = {'error': str(error)}
+            for resource_id in batch_resources:
+                logger.debug(f"Fetching metrics for {resource_id}")
+                results[resource_id] = {}
+
+                for metric_name in config['metrics']:
+                    try:
+                        response = cloudwatch.get_metric_statistics(
+                            Namespace=config['namespace'],
+                            MetricName=metric_name,
+                            Dimensions=[{'Name': config['dimension_name'], 'Value': resource_id}],
+                            StartTime=start_time,
+                            EndTime=end_time,
+                            Period=period,
+                            Statistics=['Average', 'Maximum', 'Minimum', 'Sum']
+                        )
+
+                        datapoints = response['Datapoints']
+
+                        if len(datapoints) > 0:
+                            results[resource_id][metric_name] = {
+                                'datapoints': len(datapoints),
+                                'average': sum(dp.get('Average', 0) for dp in datapoints) / len(datapoints),
+                                'maximum': max((dp.get('Maximum', 0) for dp in datapoints), default=0),
+                                'minimum': min((dp.get('Minimum', 0) for dp in datapoints), default=0),
+                                'sum': sum(dp.get('Sum', 0) for dp in datapoints)
+                            }
+                            logger.debug(f"  {metric_name}: {len(datapoints)} datapoints")
+                        else:
+                            results[resource_id][metric_name] = {
+                                'datapoints': 0,
+                                'note': 'No data available'
+                            }
+                            logger.warning(f"  {metric_name}: No data")
+
+                    except Exception as error:
+                        logger.error(f"Error fetching {metric_name} for {resource_id}: {error}")
+                        results[resource_id][metric_name] = {'error': str(error)}
 
         logger.info(f"Fetched metrics for {len(resource_ids)} {service_type} resources")
         print(f"{Fore.GREEN}✓ Fetched metrics for {len(resource_ids)} {service_type} resources")
@@ -815,7 +877,27 @@ def handle_tool_call(tool_name: str, tool_input: Dict[str, Any]) -> Any:
 
         if language == 'python':
             script_path = SCRIPTS_DIR / f"script_{timestamp}.py"
-            script_path.write_text(tool_input['code'])
+
+            # Add common imports for Python
+            code_with_imports = f"""#!/usr/bin/env python3
+# Auto-imported modules
+import boto3
+import json
+import os
+import sys
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+# Configure AWS
+AWS_REGION = '{AWS_REGION}'
+os.environ['AWS_DEFAULT_REGION'] = AWS_REGION
+
+# User code
+{tool_input['code']}
+"""
+            script_path.write_text(code_with_imports)
             command = f"python3 {script_path}"
 
         elif language in ['javascript', 'nodejs']:
@@ -1188,6 +1270,142 @@ AWS.config.update({{
         else:
             raise Exception(f"Failed to create chart of type: {chart_type}")
 
+    elif tool_name == 'get_cost_forecast':
+        from mcp_aws_client import mcp_client
+
+        start_date = tool_input['start_date']
+        end_date = tool_input['end_date']
+        metric = tool_input.get('metric', 'UNBLENDED_COST')
+        granularity = tool_input.get('granularity', 'MONTHLY')
+
+        print(f"{Fore.LIGHTBLACK_EX}📊 Getting cost forecast from {start_date} to {end_date}")
+
+        result = mcp_client.get_cost_forecast(start_date, end_date, metric, granularity)
+
+        if result.get('success'):
+            total_forecast = result.get('total', {}).get('Amount', 'N/A')
+            forecast_data = result.get('forecast', [])
+            print(f"{Fore.GREEN}✓ Forecast: ${total_forecast}")
+            return {
+                'success': True,
+                'total_forecast': total_forecast,
+                'forecast_by_period': forecast_data,
+                'metric': metric,
+                'granularity': granularity
+            }
+        else:
+            raise Exception(f"Failed to get forecast: {result.get('error')}")
+
+    elif tool_name == 'get_cost_anomalies':
+        from mcp_aws_client import mcp_client
+
+        start_date = tool_input['start_date']
+        end_date = tool_input['end_date']
+        monitor_arn = tool_input.get('monitor_arn')
+
+        print(f"{Fore.LIGHTBLACK_EX}⚠️  Detecting cost anomalies from {start_date} to {end_date}")
+
+        result = mcp_client.get_anomalies(start_date, end_date, monitor_arn)
+
+        if result.get('success'):
+            anomalies = result.get('anomalies', [])
+            count = result.get('count', 0)
+            print(f"{Fore.GREEN}✓ Found {count} cost anomalies")
+            return {
+                'success': True,
+                'anomalies': anomalies,
+                'count': count
+            }
+        else:
+            raise Exception(f"Failed to get anomalies: {result.get('error')}")
+
+    elif tool_name == 'get_rightsizing_recommendations':
+        from mcp_aws_client import mcp_client
+
+        resource_type = tool_input.get('resource_type', 'all')
+
+        print(f"{Fore.LIGHTBLACK_EX}✂️  Getting rightsizing recommendations for {resource_type}")
+
+        results = {}
+
+        if resource_type in ['ec2', 'all']:
+            ec2_result = mcp_client.get_ec2_recommendations()
+            if ec2_result.get('success'):
+                results['ec2'] = ec2_result
+                print(f"{Fore.GREEN}✓ Found {ec2_result.get('count', 0)} EC2 recommendations (${ec2_result.get('potential_savings', 0)}/month savings)")
+
+        if resource_type in ['lambda', 'all']:
+            lambda_result = mcp_client.get_lambda_recommendations()
+            if lambda_result.get('success'):
+                results['lambda'] = lambda_result
+                print(f"{Fore.GREEN}✓ Found {lambda_result.get('count', 0)} Lambda recommendations")
+
+        if not results:
+            raise Exception("Failed to get any recommendations")
+
+        total_savings = results.get('ec2', {}).get('potential_savings', 0)
+
+        return {
+            'success': True,
+            'recommendations': results,
+            'total_potential_savings': total_savings
+        }
+
+    elif tool_name == 'get_budgets_status':
+        from mcp_aws_client import mcp_client
+
+        account_id = tool_input.get('account_id')
+
+        print(f"{Fore.LIGHTBLACK_EX}💰 Getting AWS Budgets status")
+
+        result = mcp_client.get_budgets(account_id)
+
+        if result.get('success'):
+            budgets = result.get('budgets', [])
+            count = result.get('count', 0)
+            print(f"{Fore.GREEN}✓ Found {count} budgets")
+
+            # Calculate summary
+            over_budget_count = 0
+            for budget in budgets:
+                actual = budget.get('CalculatedSpend', {}).get('ActualSpend', {}).get('Amount', 0)
+                limit = budget.get('BudgetLimit', {}).get('Amount', 0)
+                if float(actual) > float(limit):
+                    over_budget_count += 1
+
+            return {
+                'success': True,
+                'budgets': budgets,
+                'total_count': count,
+                'over_budget_count': over_budget_count
+            }
+        else:
+            raise Exception(f"Failed to get budgets: {result.get('error')}")
+
+    elif tool_name == 'get_dimension_values':
+        from mcp_aws_client import mcp_client
+
+        dimension = tool_input['dimension']
+        start_date = tool_input['start_date']
+        end_date = tool_input['end_date']
+        search_string = tool_input.get('search_string')
+
+        print(f"{Fore.LIGHTBLACK_EX}🔍 Getting dimension values for {dimension}")
+
+        result = mcp_client.get_dimension_values(dimension, start_date, end_date, search_string)
+
+        if result.get('success'):
+            values = result.get('values', [])
+            print(f"{Fore.GREEN}✓ Found {len(values)} values for {dimension}")
+            return {
+                'success': True,
+                'dimension': dimension,
+                'values': values,
+                'count': len(values)
+            }
+        else:
+            raise Exception(f"Failed to get dimension values: {result.get('error')}")
+
     else:
         raise Exception(f"Unknown tool: {tool_name}")
 
@@ -1272,6 +1490,9 @@ Supported services for get_multi_resource_metrics:
 
 **CODE EXECUTION & WORKFLOW TOOLS:**
 - execute_code: Execute custom Python or JavaScript/Node.js code for advanced analysis, data processing, or integrations
+  * Python auto-imports: boto3, json, os, sys, pandas (pd), numpy (np), datetime, timedelta, Decimal, AWS_REGION
+  * JavaScript auto-imports: AWS SDK, fs, path
+  * NO NEED to import these modules in your code - they are already available
 - save_workflow: Save reusable workflows for future use (e.g., monthly reports, optimization checks)
 - list_workflows: View all saved workflows
 - load_workflow: Load a saved workflow to view or execute
@@ -1285,8 +1506,23 @@ When to use code execution:
 - Data visualization or chart generation
 - Any analysis that benefits from procedural code
 
+**IMPORTANT for execute_code:**
+- DO NOT include import statements for auto-imported modules (boto3, pandas, json, etc.)
+- Start your Python code directly with the logic, as imports are already handled
+- Example: Just write `df = pd.DataFrame(data)` NOT `import pandas as pd; df = pd.DataFrame(data)`
+
 **VISUALIZATION TOOL:**
 - create_visualization: Create interactive charts and visualizations from data
+
+**MCP (MODEL CONTEXT PROTOCOL) TOOLS:**
+When MCP servers are enabled, you will have access to additional tools from external systems:
+- Tools with prefix 'mcp_aws-kb_' - AWS Knowledge Base tools for querying AWS documentation and best practices
+- Tools with prefix 'mcp_aws-lambda_' - AWS Lambda management tools
+- Tools with prefix 'mcp_aws-serverless_' - AWS Serverless application management
+- Tools with prefix 'mcp_aws-ecs_' - AWS ECS cluster and service management
+- Tools with prefix 'mcp_aws-eks_' - AWS EKS cluster management
+
+These tools enhance your capabilities with official AWS integrations and real-time knowledge.
 
 **IMPORTANT - AUTOMATIC VISUALIZATIONS:**
 You MUST automatically create visualizations whenever you present data that would benefit from visual representation. DO NOT wait for users to ask for charts - proactively create them.
@@ -1316,8 +1552,8 @@ After executing a query that returns data suitable for visualization:
 4. Include descriptive title and labels
 
 # CUR Table Schema
-Database: {config['curDatabase']}
-Table: {config['curTable']}
+Database: {config.get('curDatabase', 'Not configured')}
+Table: {config.get('curTable', 'Not configured')}
 Total Columns: {CUR_SCHEMA['totalColumns'] if CUR_SCHEMA else 'Unknown'}
 
 **IMPORTANT: All column names use forward slashes (/) and MUST be quoted in SQL queries.**
@@ -1339,9 +1575,9 @@ Common columns by category:
 - **PREFER query_cur_data for all cost queries** - it has the most detailed, accurate data
 - **CRITICAL**: Column names MUST use forward slashes and be quoted: "lineitem/unblendedcost" NOT lineitem_unblendedcost
 - **TAGS**: Use `raw_tags` column. Use json_extract_scalar() for simple keys, json_extract() for keys with hyphens/colons (compare with '"value"')
-- Example query: SELECT "product/productname", SUM("lineitem/unblendedcost") FROM {config['curTable']} WHERE "lineitem/usagestartdate" >= DATE('2024-01-01') GROUP BY "product/productname"
-- Example tag query (simple): SELECT json_extract_scalar(raw_tags, '$.Environment') as env, SUM("lineitem/unblendedcost") as cost FROM {config['curTable']} WHERE json_extract_scalar(raw_tags, '$.Environment') IS NOT NULL GROUP BY env
-- Example tag query (with hyphens): SELECT json_extract(raw_tags, '$["goog-k8s-cluster-name"]') as cluster FROM {config['curTable']} WHERE json_extract(raw_tags, '$["goog-k8s-cluster-name"]') = '"gke123"'
+- Example query: SELECT "product/productname", SUM("lineitem/unblendedcost") FROM {config.get('curTable', 'your_table')} WHERE "lineitem/usagestartdate" >= DATE('2024-01-01') GROUP BY "product/productname"
+- Example tag query (simple): SELECT json_extract_scalar(raw_tags, '$.Environment') as env, SUM("lineitem/unblendedcost") as cost FROM {config.get('curTable', 'your_table')} WHERE json_extract_scalar(raw_tags, '$.Environment') IS NOT NULL GROUP BY env
+- Example tag query (with hyphens): SELECT json_extract(raw_tags, '$["goog-k8s-cluster-name"]') as cluster FROM {config.get('curTable', 'your_table')} WHERE json_extract(raw_tags, '$["goog-k8s-cluster-name"]') = '"gke123"'
 - Use get_cost_by_service ONLY when: (1) forecasting future costs, (2) CUR query fails
 - When asked about "last month", calculate the previous calendar month based on today's date
 - Use proper date ranges in YYYY-MM-DD format with DATE() function

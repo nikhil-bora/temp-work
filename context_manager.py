@@ -29,13 +29,16 @@ class ContextManager:
             json.dump(self.contexts, f, indent=2)
 
     def add_context(self, name: str, content: str, description: str = "", context_type: str = "text") -> Dict:
-        """Add a new custom context (text or image)"""
+        """Add a new custom context (text, image, or pdf)"""
         context_id = f"ctx_{int(time.time())}_{name.replace(' ', '_')}"
 
         # Determine file extension based on type
         if context_type == "image":
             # For images, content is base64 encoded
             context_file = self.storage_dir / f"{context_id}.img"
+        elif context_type == "pdf":
+            # For PDFs, content contains base64 and extracted text
+            context_file = self.storage_dir / f"{context_id}.pdf"
         else:
             context_file = self.storage_dir / f"{context_id}.txt"
 
@@ -148,6 +151,48 @@ class ContextManager:
             if not content:
                 continue
 
+            # Special handling for large PDFs
+            if context.get('type') == 'pdf':
+                # Check if this is a large PDF with summary
+                if 'SUMMARY:' in content and 'FULL_TEXT_AVAILABLE:true' in content:
+                    # Extract just the summary, not the full PDF base64
+                    summary_start = content.find('SUMMARY:')
+                    summary_end = content.find('FULL_TEXT_AVAILABLE:')
+                    summary = content[summary_start:summary_end].replace('SUMMARY:', '').strip()
+
+                    contexts_text += f"## {context['name']} (Large PDF)\n"
+                    if context.get('description'):
+                        contexts_text += f"{context['description']}\n\n"
+                    contexts_text += f"{summary}\n\n"
+                    contexts_text += "---\n\n"
+                    continue
+                elif 'EXTRACTED_TEXT:' in content:
+                    # Regular PDF with full text - extract just the text part
+                    text_start = content.find('EXTRACTED_TEXT:')
+                    extracted_text = content[text_start:].replace('EXTRACTED_TEXT:', '').strip()
+
+                    # Check if extracted text is still too large
+                    MAX_TEXT_CHARS = 400000  # ~100k tokens
+                    if len(extracted_text) > MAX_TEXT_CHARS:
+                        # Truncate with warning
+                        truncated_text = extracted_text[:MAX_TEXT_CHARS]
+                        contexts_text += f"## {context['name']} (PDF - Truncated)\n"
+                        if context.get('description'):
+                            contexts_text += f"{context['description']}\n\n"
+                        contexts_text += f"⚠️ PDF content truncated to fit context limit. Showing first ~100k tokens.\n\n"
+                        contexts_text += f"{truncated_text}\n\n"
+                        contexts_text += "... (content truncated) ...\n\n"
+                        contexts_text += "---\n\n"
+                        continue
+                    else:
+                        contexts_text += f"## {context['name']} (PDF)\n"
+                        if context.get('description'):
+                            contexts_text += f"{context['description']}\n\n"
+                        contexts_text += f"{extracted_text}\n\n"
+                        contexts_text += "---\n\n"
+                        continue
+
+            # Regular text context
             contexts_text += f"## {context['name']}\n"
             if context.get('description'):
                 contexts_text += f"{context['description']}\n\n"
@@ -155,6 +200,53 @@ class ContextManager:
             contexts_text += "---\n\n"
 
         return contexts_text
+
+    def get_pdf_pages(self, context_id: str, start_page: int = 1, end_page: int = None) -> Optional[str]:
+        """Extract specific pages from a PDF context"""
+        context = self.get_context(context_id)
+        if not context or context.get('type') != 'pdf':
+            return None
+
+        content = self.get_context_content(context_id)
+        if not content:
+            return None
+
+        # Check if full text is available
+        if 'FULL_TEXT_AVAILABLE:true' not in content:
+            # Already has full text, just return it
+            return content
+
+        # Extract the base64 PDF
+        try:
+            import io
+            import PyPDF2
+
+            if content.startswith('PDF:'):
+                base64_part = content.split('\n')[0].replace('PDF:', '')
+                pdf_data = base64.b64decode(base64_part)
+
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_data))
+                total_pages = len(pdf_reader.pages)
+
+                if end_page is None:
+                    end_page = total_pages
+
+                # Validate page range
+                start_page = max(1, min(start_page, total_pages))
+                end_page = max(start_page, min(end_page, total_pages))
+
+                # Extract requested pages
+                extracted_text = f"PDF Pages {start_page} to {end_page} (of {total_pages} total):\n\n"
+                for page_num in range(start_page - 1, end_page):
+                    extracted_text += f"\n--- Page {page_num + 1} ---\n"
+                    extracted_text += pdf_reader.pages[page_num].extract_text()
+
+                return extracted_text
+
+        except Exception as e:
+            return f"Error extracting PDF pages: {str(e)}"
+
+        return None
 
     def get_image_contexts(self, context_ids: List[str]) -> List[Dict]:
         """Get image contexts formatted for Claude's vision API"""

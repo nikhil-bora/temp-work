@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - FinOps Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Dashboard View Styles */
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard-header {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .dashboard-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 2rem;
+        }
+
+        .dashboard-info {
+            flex: 1;
+        }
+
+        .dashboard-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            cursor: text;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .dashboard-title:hover {
+            background: var(--bg-secondary);
+        }
+
+        .dashboard-title[contenteditable="true"] {
+            outline: 2px solid var(--primary-blue);
+            background: var(--bg-secondary);
+        }
+
+        .dashboard-description {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            cursor: text;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+            min-height: 1.5rem;
+        }
+
+        .dashboard-description:hover {
+            background: var(--bg-secondary);
+        }
+
+        .dashboard-description[contenteditable="true"] {
+            outline: 2px solid var(--primary-blue);
+            background: var(--bg-secondary);
+        }
+
+        .dashboard-description:empty::before {
+            content: 'Add a description...';
+            color: var(--text-muted);
+        }
+
+        .dashboard-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .btn-edit-mode {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .btn-edit-mode:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 85, 254, 0.3);
+        }
+
+        .btn-edit-mode.active {
+            background: var(--accent-coral);
+        }
+
+        .btn-save, .btn-cancel {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .btn-save {
+            background: var(--accent-mint);
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #60d49a;
+            transform: translateY(-1px);
+        }
+
+        .btn-cancel {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-cancel:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .edit-mode-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* Widget Grid - 12 column system */
+        .widgets-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+            position: relative;
+        }
+
+        .widget {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            min-height: 200px;
+            will-change: transform;
+        }
+
+        .widget.resizing {
+            transition: none !important;
+            pointer-events: none;
+        }
+
+        .widget.resizing * {
+            pointer-events: none;
+        }
+
+        .widget.resizing .widget-chart-iframe {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        /* Grid span classes */
+        .widget[data-cols="3"] { grid-column: span 3; }
+        .widget[data-cols="4"] { grid-column: span 4; }
+        .widget[data-cols="6"] { grid-column: span 6; }
+        .widget[data-cols="8"] { grid-column: span 8; }
+        .widget[data-cols="12"] { grid-column: span 12; }
+
+        /* Default spans if not specified */
+        .widget:not([data-cols]) {
+            grid-column: span 6;
+        }
+
+        /* Responsive grid */
+        @media (max-width: 1200px) {
+            .widgets-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            .widget[data-cols="3"] { grid-column: span 3; }
+            .widget[data-cols="4"] { grid-column: span 4; }
+            .widget[data-cols="6"] { grid-column: span 6; }
+            .widget[data-cols="8"] { grid-column: span 6; }
+            .widget[data-cols="12"] { grid-column: span 6; }
+            .widget:not([data-cols]) { grid-column: span 6; }
+        }
+
+        @media (max-width: 768px) {
+            .widgets-grid {
+                grid-template-columns: 1fr;
+            }
+            .widget {
+                grid-column: span 1 !important;
+            }
+        }
+
+        .widget.edit-mode {
+            cursor: move;
+            border: 2px dashed var(--border-color);
+        }
+
+        .widget.edit-mode:hover {
+            border-color: var(--primary-blue);
+            box-shadow: 0 4px 16px rgba(0, 85, 254, 0.15);
+        }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .widget-info {
+            flex: 1;
+        }
+
+        .widget-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .widget-description {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .widget-actions {
+            display: none;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .widget.edit-mode .widget-actions {
+            display: flex;
+        }
+
+        /* Resize handles */
+        .resize-handle {
+            position: absolute;
+            background: var(--primary-blue);
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+
+        .widget.edit-mode:hover .resize-handle {
+            opacity: 0.7;
+        }
+
+        .resize-handle:hover {
+            opacity: 1 !important;
+        }
+
+        .resize-handle-right {
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            cursor: ew-resize;
+        }
+
+        .resize-handle-bottom {
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 8px;
+            cursor: ns-resize;
+        }
+
+        .resize-handle-corner {
+            right: 0;
+            bottom: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nwse-resize;
+            border-bottom-right-radius: 12px;
+        }
+
+        .widget-size-controls {
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.25rem;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+        }
+
+        .btn-size {
+            padding: 0.25rem 0.5rem;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-size:hover {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .btn-size.active {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+        .btn-widget-delete {
+            padding: 0.5rem 0.75rem;
+            background: var(--accent-coral);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-widget-delete:hover {
+            background: #ff4757;
+            transform: scale(1.05);
+        }
+
+        .drag-handle {
+            display: none;
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            width: 24px;
+            height: 24px;
+            background: var(--primary-blue);
+            color: white;
+            border-radius: 4px;
+            cursor: move;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+
+        .widget.edit-mode .drag-handle {
+            display: flex;
+        }
+
+        /* Chart Widget */
+        .widget-chart-iframe {
+            width: 100%;
+            min-height: 300px;
+            border: none;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+        }
+
+        /* Text Widget */
+        .widget-text-content {
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        .widget-text-content h1,
+        .widget-text-content h2,
+        .widget-text-content h3 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .widget-text-content h1 { font-size: 1.5rem; }
+        .widget-text-content h2 { font-size: 1.25rem; }
+        .widget-text-content h3 { font-size: 1.1rem; }
+
+        .widget-text-content p {
+            margin-bottom: 0.75rem;
+        }
+
+        .widget-text-content ul,
+        .widget-text-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .widget-text-content code {
+            background: var(--bg-secondary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        .widget-text-content pre {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        /* Add Widget Buttons */
+        .add-widget-section {
+            display: none;
+            grid-column: 1 / -1;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .add-widget-section.visible {
+            display: flex;
+        }
+
+        .btn-add-widget {
+            padding: 1rem 2rem;
+            background: var(--accent-mint);
+            color: white;
+            border: 2px dashed white;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .btn-add-widget:hover {
+            background: #60d49a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(116, 206, 167, 0.3);
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .btn-close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            font-family: var(--font-primary);
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 85, 254, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-help {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Dragging State */
+        .widget.dragging {
+            opacity: 0.5;
+        }
+
+        .widget.drag-over {
+            border-color: var(--primary-blue);
+            background: rgba(0, 85, 254, 0.05);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .widgets-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-header-row {
+                flex-direction: column;
+            }
+
+            .dashboard-actions {
+                width: 100%;
+            }
+
+            .edit-mode-buttons {
+                width: 100%;
+            }
+
+            .btn-edit-mode, .btn-save, .btn-cancel {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">A</div>
+                <div>
+                    <div class="logo-text">FinOps Agent</div>
+                    <div class="header-subtitle">FinOps OS powered by AI Agents</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button class="btn-nav" onclick="window.location.href='/'">
+                    💬 Chat
+                </button>
+                <button class="btn-nav" onclick="window.location.href='/api/dashboard'">
+                    📊 KPIs
+                </button>
+                <button class="btn-nav" onclick="window.location.href='/api/charts-page'">
+                    📈 Charts
+                </button>
+                <button class="btn-nav active" onclick="window.location.href='/api/dashboards-page'">
+                    📋 Dashboards
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Dashboard Container -->
+    <div class="dashboard-container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="dashboard-header-row">
+                <div class="dashboard-info">
+                    <h1 class="dashboard-title" id="dashboardTitle" contenteditable="false">Loading...</h1>
+                    <p class="dashboard-description" id="dashboardDescription" contenteditable="false"></p>
+                </div>
+                <div class="dashboard-actions">
+                    <button class="btn-edit-mode" id="btnEditMode" onclick="toggleEditMode()">
+                        ✏️ Edit
+                    </button>
+                    <div class="edit-mode-buttons" id="editModeButtons" style="display: none;">
+                        <button class="btn-save" onclick="saveDashboard()">
+                            💾 Save
+                        </button>
+                        <button class="btn-cancel" onclick="cancelEdit()">
+                            ✕ Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Widgets Grid -->
+        <div class="widgets-grid" id="widgetsGrid">
+            <div class="empty-state">
+                <div class="empty-state-icon">⏳</div>
+                <p>Loading dashboard...</p>
+            </div>
+        </div>
+
+        <!-- Add Widget Buttons -->
+        <div class="add-widget-section" id="addWidgetSection">
+            <button class="btn-add-widget" onclick="showAddChartModal()">
+                📈 Add Chart Widget
+            </button>
+            <button class="btn-add-widget" onclick="showAddTextModal()">
+                📝 Add Text Widget
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Chart Widget Modal -->
+    <div class="modal" id="addChartModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add Chart Widget</h2>
+                <button class="btn-close-modal" onclick="closeAddChartModal()">&times;</button>
+            </div>
+            <form id="addChartForm" onsubmit="submitAddChart(event)">
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-input" id="chartTitle" required placeholder="e.g., Monthly Cost Trends">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-input" id="chartDescription" placeholder="Brief description of the chart">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chart URL</label>
+                    <input type="url" class="form-input" id="chartUrl" required placeholder="https://...">
+                    <div class="form-help">Enter the URL of the chart to display</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddChartModal()">Cancel</button>
+                    <button type="submit" class="btn-save">Add Widget</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Text Widget Modal -->
+    <div class="modal" id="addTextModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add Text Widget</h2>
+                <button class="btn-close-modal" onclick="closeAddTextModal()">&times;</button>
+            </div>
+            <form id="addTextForm" onsubmit="submitAddText(event)">
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-input" id="textTitle" required placeholder="e.g., Key Insights">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Content</label>
+                    <textarea class="form-textarea" id="textContent" required placeholder="Enter text content (Markdown supported)"></textarea>
+                    <div class="form-help">Supports Markdown formatting: **bold**, *italic*, # headings, - lists</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddTextModal()">Cancel</button>
+                    <button type="submit" class="btn-save">Add Widget</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        const dashboardId = '{{ dashboard_id }}';
+        let dashboardData = null;
+        let editMode = false;
+        let originalData = null;
+        let draggedElement = null;
+
+        // Load dashboard on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+
+            // Check if edit mode should be enabled from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('edit') === 'true') {
+                setTimeout(() => toggleEditMode(), 500);
+            }
+        });
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`/api/dashboards/${dashboardId}`);
+                if (!response.ok) throw new Error('Failed to load dashboard');
+
+                dashboardData = await response.json();
+                renderDashboard();
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('widgetsGrid').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Failed to Load Dashboard</h3>
+                        <p>Unable to load dashboard data. Please try again.</p>
+                        <button class="btn-save" onclick="window.location.href='/api/dashboards-page'" style="margin-top: 1rem;">
+                            Back to Dashboards
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Render dashboard
+        function renderDashboard() {
+            // Update header
+            document.getElementById('dashboardTitle').textContent = dashboardData.name || 'Untitled Dashboard';
+            document.getElementById('dashboardDescription').textContent = dashboardData.description || '';
+
+            // Render widgets
+            renderWidgets();
+        }
+
+        // Render widgets
+        function renderWidgets() {
+            const grid = document.getElementById('widgetsGrid');
+            const widgets = dashboardData.widgets || [];
+
+            if (widgets.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">No Widgets Yet</h3>
+                        <p>Click "Edit" to start adding widgets to your dashboard</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = widgets.map((widget, index) => {
+                if (widget.type === 'chart') {
+                    return renderChartWidget(widget, index);
+                } else if (widget.type === 'text') {
+                    return renderTextWidget(widget, index);
+                }
+                return '';
+            }).join('');
+
+            // Attach drag events if in edit mode
+            if (editMode) {
+                attachDragHandlers();
+            }
+        }
+
+        // Render chart widget
+        function renderChartWidget(widget, index) {
+            const height = widget.height || '400px';
+            const cols = widget.cols || 6; // Default to half width
+            return `
+                <div class="widget ${editMode ? 'edit-mode' : ''}" data-index="${index}" data-cols="${cols}" draggable="${editMode}">
+                    <div class="drag-handle">⋮⋮</div>
+                    ${editMode ? `
+                        <div class="resize-handle resize-handle-right" onmousedown="startResize(event, ${index}, 'width')"></div>
+                        <div class="resize-handle resize-handle-bottom" onmousedown="startResize(event, ${index}, 'height')"></div>
+                        <div class="resize-handle resize-handle-corner" onmousedown="startResize(event, ${index}, 'both')"></div>
+                    ` : ''}
+                    <div class="widget-header">
+                        <div class="widget-info">
+                            <div class="widget-title">${escapeHtml(widget.title)}</div>
+                            ${widget.description ? `<div class="widget-description">${escapeHtml(widget.description)}</div>` : ''}
+                        </div>
+                        <div class="widget-actions">
+                            <div class="widget-size-controls">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 0.5rem;">Width:</span>
+                                <button class="btn-size ${cols === 3 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 3)">¼</button>
+                                <button class="btn-size ${cols === 4 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 4)">⅓</button>
+                                <button class="btn-size ${cols === 6 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 6)">½</button>
+                                <button class="btn-size ${cols === 8 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 8)">⅔</button>
+                                <button class="btn-size ${cols === 12 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 12)">Full</button>
+                            </div>
+                            <div class="widget-size-controls" style="margin-left: 0.5rem;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 0.5rem;">Height:</span>
+                                <button class="btn-size ${height === '300px' ? 'active' : ''}" onclick="resizeWidgetHeight(${index}, '300px')">S</button>
+                                <button class="btn-size ${height === '400px' ? 'active' : ''}" onclick="resizeWidgetHeight(${index}, '400px')">M</button>
+                                <button class="btn-size ${height === '600px' ? 'active' : ''}" onclick="resizeWidgetHeight(${index}, '600px')">L</button>
+                                <button class="btn-size ${height === '800px' ? 'active' : ''}" onclick="resizeWidgetHeight(${index}, '800px')">XL</button>
+                            </div>
+                            <button class="btn-widget-delete" onclick="deleteWidget(${index})">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                    <iframe class="widget-chart-iframe" src="${escapeHtml(widget.chart_url || widget.url)}" loading="lazy" style="height: ${height};"></iframe>
+                </div>
+            `;
+        }
+
+        // Render text widget
+        function renderTextWidget(widget, index) {
+            const htmlContent = marked ? marked.parse(widget.content) : widget.content.replace(/\n/g, '<br>');
+            const cols = widget.cols || 6; // Default to half width
+            return `
+                <div class="widget ${editMode ? 'edit-mode' : ''}" data-index="${index}" data-cols="${cols}" draggable="${editMode}">
+                    <div class="drag-handle">⋮⋮</div>
+                    ${editMode ? `
+                        <div class="resize-handle resize-handle-right" onmousedown="startResize(event, ${index}, 'width')"></div>
+                    ` : ''}
+                    <div class="widget-header">
+                        <div class="widget-info">
+                            <div class="widget-title">${escapeHtml(widget.title)}</div>
+                        </div>
+                        <div class="widget-actions">
+                            <div class="widget-size-controls">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 0.5rem;">Width:</span>
+                                <button class="btn-size ${cols === 3 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 3)">¼</button>
+                                <button class="btn-size ${cols === 4 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 4)">⅓</button>
+                                <button class="btn-size ${cols === 6 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 6)">½</button>
+                                <button class="btn-size ${cols === 8 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 8)">⅔</button>
+                                <button class="btn-size ${cols === 12 ? 'active' : ''}" onclick="resizeWidgetCols(${index}, 12)">Full</button>
+                            </div>
+                            <button class="btn-widget-delete" onclick="deleteWidget(${index})">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="widget-text-content">${htmlContent}</div>
+                </div>
+            `;
+        }
+
+        // Toggle edit mode
+        function toggleEditMode() {
+            editMode = !editMode;
+
+            if (editMode) {
+                // Save original data
+                originalData = JSON.parse(JSON.stringify(dashboardData));
+
+                // Update UI
+                document.getElementById('btnEditMode').classList.add('active');
+                document.getElementById('btnEditMode').textContent = '✏️ Editing';
+                document.getElementById('editModeButtons').style.display = 'flex';
+                document.getElementById('addWidgetSection').classList.add('visible');
+
+                // Enable inline editing
+                document.getElementById('dashboardTitle').contentEditable = true;
+                document.getElementById('dashboardDescription').contentEditable = true;
+            } else {
+                // Update UI
+                document.getElementById('btnEditMode').classList.remove('active');
+                document.getElementById('btnEditMode').textContent = '✏️ Edit';
+                document.getElementById('editModeButtons').style.display = 'none';
+                document.getElementById('addWidgetSection').classList.remove('visible');
+
+                // Disable inline editing
+                document.getElementById('dashboardTitle').contentEditable = false;
+                document.getElementById('dashboardDescription').contentEditable = false;
+            }
+
+            renderWidgets();
+        }
+
+        // Cancel edit
+        function cancelEdit() {
+            if (originalData) {
+                dashboardData = JSON.parse(JSON.stringify(originalData));
+                renderDashboard();
+            }
+            toggleEditMode();
+        }
+
+        // Save dashboard
+        async function saveDashboard() {
+            // Update dashboard data with edited fields
+            dashboardData.name = document.getElementById('dashboardTitle').textContent.trim();
+            dashboardData.description = document.getElementById('dashboardDescription').textContent.trim();
+
+            try {
+                const response = await fetch(`/api/dashboards/${dashboardId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dashboardData)
+                });
+
+                if (!response.ok) throw new Error('Failed to save dashboard');
+
+                const result = await response.json();
+                dashboardData = result;
+                originalData = null;
+                toggleEditMode();
+
+                // Show success message (you can enhance this)
+                alert('Dashboard saved successfully!');
+            } catch (error) {
+                console.error('Error saving dashboard:', error);
+                alert('Failed to save dashboard. Please try again.');
+            }
+        }
+
+        // Resize widget columns (width)
+        function resizeWidgetCols(index, cols) {
+            if (!dashboardData.widgets[index]) return;
+            dashboardData.widgets[index].cols = cols;
+            renderWidgets();
+        }
+
+        // Resize widget height
+        function resizeWidgetHeight(index, height) {
+            if (!dashboardData.widgets[index]) return;
+            dashboardData.widgets[index].height = height;
+            renderWidgets();
+        }
+
+        // Optimized drag resize functionality
+        let resizing = null;
+        let resizeRAF = null;
+        let pendingResize = null;
+
+        function startResize(event, index, direction) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const widget = dashboardData.widgets[index];
+            const element = event.target.closest('.widget');
+            const startX = event.clientX;
+            const startY = event.clientY;
+            const startWidth = widget.cols || 6;
+            const startHeight = parseInt(widget.height) || 400;
+
+            resizing = {
+                index,
+                direction,
+                startX,
+                startY,
+                startWidth,
+                startHeight,
+                element,
+                lastUpdate: 0
+            };
+
+            // Add resizing class for visual feedback
+            element.classList.add('resizing');
+
+            document.addEventListener('mousemove', handleResizeThrottled);
+            document.addEventListener('mouseup', stopResize);
+
+            // Disable draggable while resizing
+            element.setAttribute('draggable', 'false');
+
+            // Disable iframe pointer events for smoother dragging
+            const iframe = element.querySelector('.widget-chart-iframe');
+            if (iframe) {
+                iframe.style.pointerEvents = 'none';
+            }
+        }
+
+        function handleResizeThrottled(event) {
+            if (!resizing) return;
+
+            // Store the event data
+            pendingResize = {
+                clientX: event.clientX,
+                clientY: event.clientY
+            };
+
+            // Use requestAnimationFrame for smooth updates
+            if (!resizeRAF) {
+                resizeRAF = requestAnimationFrame(performResize);
+            }
+        }
+
+        function performResize() {
+            resizeRAF = null;
+
+            if (!resizing || !pendingResize) return;
+
+            const now = performance.now();
+
+            // Throttle to ~60fps max
+            if (now - resizing.lastUpdate < 16) {
+                resizeRAF = requestAnimationFrame(performResize);
+                return;
+            }
+
+            resizing.lastUpdate = now;
+
+            const deltaX = pendingResize.clientX - resizing.startX;
+            const deltaY = pendingResize.clientY - resizing.startY;
+
+            const widget = dashboardData.widgets[resizing.index];
+            const element = resizing.element;
+
+            if (resizing.direction === 'width' || resizing.direction === 'both') {
+                // Calculate new column span based on pixel movement
+                // Get container width to calculate columns more accurately
+                const gridWidth = element.parentElement.offsetWidth;
+                const colWidth = gridWidth / 12;
+                const colsDelta = Math.round(deltaX / colWidth);
+                let newCols = Math.max(3, Math.min(12, resizing.startWidth + colsDelta));
+
+                if (widget.cols !== newCols) {
+                    widget.cols = newCols;
+                    element.setAttribute('data-cols', newCols);
+                }
+            }
+
+            if (resizing.direction === 'height' || resizing.direction === 'both') {
+                // Calculate new height with snapping every 50px
+                const newHeight = Math.max(200, Math.round((resizing.startHeight + deltaY) / 50) * 50);
+                const heightPx = newHeight + 'px';
+
+                if (widget.height !== heightPx) {
+                    widget.height = heightPx;
+                    const iframe = element.querySelector('.widget-chart-iframe');
+                    if (iframe) {
+                        iframe.style.height = heightPx;
+                    }
+                }
+            }
+
+            pendingResize = null;
+        }
+
+        function stopResize() {
+            if (resizing) {
+                const element = resizing.element;
+                element.classList.remove('resizing');
+                element.setAttribute('draggable', 'true');
+
+                // Re-enable iframe pointer events
+                const iframe = element.querySelector('.widget-chart-iframe');
+                if (iframe) {
+                    iframe.style.pointerEvents = '';
+                }
+
+                resizing = null;
+            }
+
+            if (resizeRAF) {
+                cancelAnimationFrame(resizeRAF);
+                resizeRAF = null;
+            }
+
+            pendingResize = null;
+
+            document.removeEventListener('mousemove', handleResizeThrottled);
+            document.removeEventListener('mouseup', stopResize);
+
+            // Re-render to update buttons after resize is complete
+            renderWidgets();
+        }
+
+        // Delete widget
+        function deleteWidget(index) {
+            if (!confirm('Are you sure you want to delete this widget?')) return;
+
+            dashboardData.widgets.splice(index, 1);
+            renderWidgets();
+        }
+
+        // Show add chart modal
+        function showAddChartModal() {
+            document.getElementById('addChartModal').classList.add('visible');
+            document.getElementById('chartTitle').focus();
+        }
+
+        // Close add chart modal
+        function closeAddChartModal() {
+            document.getElementById('addChartModal').classList.remove('visible');
+            document.getElementById('addChartForm').reset();
+        }
+
+        // Submit add chart
+        function submitAddChart(event) {
+            event.preventDefault();
+
+            const widget = {
+                type: 'chart',
+                title: document.getElementById('chartTitle').value.trim(),
+                description: document.getElementById('chartDescription').value.trim(),
+                chart_url: document.getElementById('chartUrl').value.trim()
+            };
+
+            if (!dashboardData.widgets) {
+                dashboardData.widgets = [];
+            }
+            dashboardData.widgets.push(widget);
+
+            renderWidgets();
+            closeAddChartModal();
+        }
+
+        // Show add text modal
+        function showAddTextModal() {
+            document.getElementById('addTextModal').classList.add('visible');
+            document.getElementById('textTitle').focus();
+        }
+
+        // Close add text modal
+        function closeAddTextModal() {
+            document.getElementById('addTextModal').classList.remove('visible');
+            document.getElementById('addTextForm').reset();
+        }
+
+        // Submit add text
+        function submitAddText(event) {
+            event.preventDefault();
+
+            const widget = {
+                type: 'text',
+                title: document.getElementById('textTitle').value.trim(),
+                content: document.getElementById('textContent').value.trim()
+            };
+
+            if (!dashboardData.widgets) {
+                dashboardData.widgets = [];
+            }
+            dashboardData.widgets.push(widget);
+
+            renderWidgets();
+            closeAddTextModal();
+        }
+
+        // Drag and drop handlers
+        function attachDragHandlers() {
+            const widgets = document.querySelectorAll('.widget');
+
+            widgets.forEach(widget => {
+                widget.addEventListener('dragstart', handleDragStart);
+                widget.addEventListener('dragend', handleDragEnd);
+                widget.addEventListener('dragover', handleDragOver);
+                widget.addEventListener('drop', handleDrop);
+                widget.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+
+            // Remove drag-over class from all widgets
+            document.querySelectorAll('.widget').forEach(widget => {
+                widget.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            this.classList.remove('drag-over');
+
+            if (draggedElement !== this) {
+                const draggedIndex = parseInt(draggedElement.dataset.index);
+                const targetIndex = parseInt(this.dataset.index);
+
+                // Reorder widgets array
+                const widget = dashboardData.widgets.splice(draggedIndex, 1)[0];
+                dashboardData.widgets.splice(targetIndex, 0, widget);
+
+                renderWidgets();
+            }
+
+            return false;
+        }
+
+        // Escape HTML helper
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Simple Markdown parser (basic implementation)
+        const marked = {
+            parse: function(markdown) {
+                let html = markdown;
+
+                // Headers
+                html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+                // Bold
+                html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+
+                // Italic
+                html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+
+                // Links
+                html = html.replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2">$1</a>');
+
+                // Line breaks
+                html = html.replace(/\n\n/gim, '</p><p>');
+                html = html.replace(/\n/gim, '<br>');
+
+                // Wrap in paragraph
+                html = '<p>' + html + '</p>';
+
+                // Lists (basic)
+                html = html.replace(/<p>- (.*?)<br>/gim, '<ul><li>$1</li>');
+                html = html.replace(/<\/li><br>- (.*?)<br>/gim, '</li><li>$1</li>');
+                html = html.replace(/<\/li><br><\/p>/gim, '</li></ul>');
+
+                return html;
+            }
+        };
+    </script>
+</body>
+</html>

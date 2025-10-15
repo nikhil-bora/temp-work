@@ -249,6 +249,44 @@ class KPIManager:
     def get_kpi_templates(self) -> List[Dict]:
         """Get KPI templates for quick creation"""
         return [
+            # MCP-based KPI templates
+            {
+                "name": "Next Month Cost Forecast",
+                "description": "AI-predicted costs for next month based on historical usage",
+                "query_type": "mcp_forecast",
+                "query": "get_cost_forecast_next_month",
+                "format": "currency",
+                "icon": "🔮",
+                "color": "#a826b3"
+            },
+            {
+                "name": "Cost Anomalies (30d)",
+                "description": "Number of cost anomalies detected in last 30 days",
+                "query_type": "mcp_anomaly",
+                "query": "get_anomalies_30d",
+                "format": "number",
+                "icon": "⚠️",
+                "color": "#ff5c69"
+            },
+            {
+                "name": "EC2 Rightsizing Savings",
+                "description": "Potential monthly savings from EC2 rightsizing",
+                "query_type": "mcp_optimizer",
+                "query": "get_ec2_savings",
+                "format": "currency",
+                "icon": "✂️",
+                "color": "#33ccff"
+            },
+            {
+                "name": "Budget Status",
+                "description": "Number of budgets over their limit",
+                "query_type": "mcp_budget",
+                "query": "get_budget_overages",
+                "format": "number",
+                "icon": "💰",
+                "color": "#ff5c69"
+            },
+            # CUR-based KPI templates
             {
                 "name": "S3 Total Cost",
                 "description": "Total S3 storage and data transfer costs",
